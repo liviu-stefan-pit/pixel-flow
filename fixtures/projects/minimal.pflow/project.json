@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "name": "minimal",
+  "variables": {
+    "greeting": "hello"
+  },
+  "defaults": {
+    "timeoutMs": 5000,
+    "retry": {
+      "maxAttempts": 3,
+      "backoffMs": 250
+    }
+  },
+  "steps": [
+    {
+      "id": "step-wait",
+      "type": "Wait",
+      "waitMs": 100
+    },
+    {
+      "id": "step-click",
+      "type": "Click",
+      "timeoutMs": 3000,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 100
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbSubmit",
+            "controlType": "Button",
+            "name": "Submit"
+          }
+        ]
+      }
+    }
+  ]
+}

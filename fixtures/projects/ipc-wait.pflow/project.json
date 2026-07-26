@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "name": "ipc-wait",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 5000,
+    "retry": {
+      "maxAttempts": 1,
+      "backoffMs": 0
+    }
+  },
+  "steps": [
+    {
+      "id": "wait-1",
+      "type": "Wait",
+      "waitMs": 4000
+    },
+    {
+      "id": "wait-2",
+      "type": "Wait",
+      "waitMs": 4000
+    },
+    {
+      "id": "wait-3",
+      "type": "Wait",
+      "waitMs": 4000
+    }
+  ]
+}

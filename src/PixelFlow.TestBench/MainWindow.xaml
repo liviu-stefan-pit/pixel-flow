@@ -1,0 +1,24 @@
+<Window x:Class="PixelFlow.TestBench.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Test Bench"
+        Height="220"
+        Width="360"
+        WindowStartupLocation="CenterScreen">
+  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+    <TextBlock x:Name="CounterLabel"
+               Text="Clicks: 0"
+               FontSize="18"
+               Margin="0,0,0,16"
+               HorizontalAlignment="Center"
+               AutomationProperties.AutomationId="TbCounter" />
+    <Button x:Name="SubmitButton"
+            Content="Submit"
+            Width="140"
+            Height="36"
+            FontSize="16"
+            Click="OnSubmitClick"
+            AutomationProperties.AutomationId="TbSubmit"
+            AutomationProperties.Name="Submit" />
+  </StackPanel>
+</Window>

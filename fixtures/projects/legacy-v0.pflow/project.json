@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 0,
+  "name": "legacy-demo",
+  "variables": {
+    "label": "v0"
+  },
+  "actions": [
+    {
+      "id": "a1",
+      "action": "wait",
+      "waitMs": 50
+    },
+    {
+      "id": "a2",
+      "action": "click",
+      "timeoutMs": 2000,
+      "locator": {
+        "scope": {
+          "processName": "Notepad",
+          "windowTitle": "Untitled"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.85,
+            "automationId": "LegacyButton",
+            "controlType": "Button",
+            "name": "OK"
+          }
+        ]
+      }
+    }
+  ]
+}

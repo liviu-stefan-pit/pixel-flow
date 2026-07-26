@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PixelFlow.Core/PixelFlow.Core.csproj" />
+    <Project Path="src/PixelFlow.Runner/PixelFlow.Runner.csproj" />
+    <Project Path="src/PixelFlow.Studio/PixelFlow.Studio.csproj" />
+    <Project Path="src/PixelFlow.TestBench/PixelFlow.TestBench.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PixelFlow.Core.Tests/PixelFlow.Core.Tests.csproj" />
+  </Folder>
+</Solution>

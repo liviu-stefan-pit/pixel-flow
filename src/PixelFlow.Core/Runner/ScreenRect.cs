@@ -1,7 +1,9 @@
 namespace PixelFlow.Core.Runner;
 
 /// <summary>
-/// Axis-aligned screen rectangle in physical pixels (UIA bounding rect).
+/// Axis-aligned screen rectangle in <b>physical pixels</b> (device pixels), as returned by
+/// UIA <c>BoundingRectangle</c> / Win32 <c>GetWindowRect</c> when the process is
+/// Per-Monitor V2 DPI-aware. Convert to/from DIP via <c>PixelFlow.Core.Coordinates.DpiCoordinates</c>.
 /// </summary>
 public readonly record struct ScreenRect(double X, double Y, double Width, double Height)
 {

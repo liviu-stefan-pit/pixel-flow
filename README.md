@@ -162,7 +162,7 @@ Resolve logs always include `layer=` and `confidence=`.
 1. `dotnet run --project src/PixelFlow.Studio/PixelFlow.Studio.csproj`
 2. Use **+ Wait / + Click / + Type**, reorder with ↑↓, edit details, **Save**.
 3. **Open** the same folder again; steps match.
-4. With Test Bench running, **Run**; Wait+Click behavior matches the list (Type is editable/saved; Runner typing lands in a later phase).
+4. With Test Bench running, **Run**; Wait+Click+Type behavior matches the list (Type focuses the locator target and pastes via clipboard, then restores the prior clipboard).
 
 ### P19 — screen snipping
 
@@ -227,13 +227,32 @@ Heuristic: recent `GetLastInputInfo` (excluding the Runner's own prior synthetic
 
 Live automated cover: `StudioIpcSessionTests.UserInterference_BeforeClick_PausesWithoutClick_ThenResumeCompletes` (nudges mouse via SendInput).
 
+### P25 — clipboard restore on type/paste
+
+Type steps resolve a target (e.g. Test Bench `TbInput`), focus it, paste via the clipboard (`Ctrl+A` / `Ctrl+V`), then **always restore** the previous Unicode clipboard contents (success or mid-paste failure).
+
+```powershell
+# Put any text on the clipboard first, then:
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/type-paste.pflow
+# TbInput becomes "hello-paste-B"; clipboard is back to whatever it was before the step.
+```
+
+### P26 — DPI-aware coordinates
+
+Studio, Runner, and Test Bench declare **Per-Monitor V2** DPI awareness (`app.manifest` + `ApplicationHighDpiMode`). Locator bounds stay in physical pixels; `DpiCoordinates` converts DIP ↔ physical and maps SendInput absolute coords over the **virtual desktop**. Resolve logs include `dpi=` for the hit monitor.
+
+```powershell
+# Verified click at the current display scaling (100% / 125% / 150% …):
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/click-submit.pflow
+```
+
 ## Run Test Bench
 
 ```powershell
 dotnet run --project src/PixelFlow.TestBench/PixelFlow.TestBench.csproj
 ```
 
-Companion window with shared click counter plus WPF Submit (`TbSubmit`), native Win32 button (`BUTTON` / id 1001), OCR target text, and magenta image icon.
+Companion window with shared click counter plus WPF Submit (`TbSubmit`), Type target (`TbInput`), native Win32 button (`BUTTON` / id 1001), OCR target text, and magenta image icon.
 
 ## Tests
 
@@ -248,6 +267,8 @@ dotnet test PixelFlow.slnx --filter Category=Live                # Live: real Ru
 - **`PixelFlow.Integration.Tests`** (`Category=Live`) — launches real `PixelFlow.Runner`/`PixelFlow.TestBench` processes against a temp copy of each fixture (never dirties `fixtures/projects/*/reports/`):
   - Full locator fixture matrix (`click-submit`, `chain-uia-wins`, `chain-win32-fallback`, `win32-click`, `ocr-click`, `image-click`, and their miss counterparts) asserting exit code + `events.jsonl` layer/outcome/confidence.
   - P22 screenshot on/off assertions (PNG present + `screenshot` field vs. no PNG).
+  - P25 type/paste clipboard restore (`type-paste` + `ClipboardAndDpiTests`).
+  - P26 DPI helpers + Per-Monitor V2 click smoke at current scaling.
   - Studio↔Runner IPC contract via `RunnerSession` (the same class Studio's buttons call): Run, Pause/Resume, Stop/Abort, and killing the Runner process mid-run.
   - Starts `PixelFlow.TestBench` automatically (reuses an already-running instance if found) and skips cleanly (not a hard failure) if no interactive desktop is available.
 
@@ -266,4 +287,4 @@ dotnet test PixelFlow.slnx --filter Category=Live                # Live: real Ru
 
 ## Status
 
-Phases **P00–P24** implemented (run reports, failure screenshots, recovery, user-interference pause). See [docs/phases.md](docs/phases.md).
+Phases **P00–P26** implemented (clipboard restore on Type/paste, DPI-aware coordinates). See [docs/phases.md](docs/phases.md).

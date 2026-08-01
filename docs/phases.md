@@ -53,8 +53,8 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P22 | Opt-in failure screenshots | Done |
 | P23 | Recovery steps (skip/jump/abort) | Done |
 | P24 | User-interference detection | Done |
-| P25 | Clipboard restore on type/paste | Todo |
-| P26 | DPI-aware coordinates | Todo |
+| P25 | Clipboard restore on type/paste | Done |
+| P26 | DPI-aware coordinates | Done |
 | P27 | Display-change invalidation | Todo |
 | P28 | Broader Test Bench surfaces | Todo |
 | P29 | Project trust prompt | Todo |
@@ -369,7 +369,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P25 - Clipboard restore on type/paste
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Steps that use clipboard snapshot/restore previous contents.
 - **In scope:** Paste-based typing path or explicit Paste step.
 - **Out of scope:** Cloud clipboard sync edge cases.
@@ -381,7 +381,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P26 - DPI-aware coordinates
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Capture/replay coordinates correctly at 100%/125%/150% scaling.
 - **In scope:** Per-monitor DPI awareness declared; coordinate helpers; tests or manual matrix.
 - **Out of scope:** Full multi-monitor topology (P27).

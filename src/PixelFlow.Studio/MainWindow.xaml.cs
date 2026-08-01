@@ -326,7 +326,32 @@ public partial class MainWindow : Window
         });
 
     private void OnAddTypeClick(object sender, RoutedEventArgs e) =>
-        AddStep(new ScriptStep { Id = NextStepId("type"), Type = "Type", Text = "" });
+        AddStep(new ScriptStep
+        {
+            Id = NextStepId("type"),
+            Type = "Type",
+            Text = "",
+            Locator = new LocatorChain
+            {
+                Scope = new ProcessWindowScope
+                {
+                    ProcessName = "PixelFlow.TestBench",
+                    WindowTitle = "Test Bench",
+                },
+                Layers =
+                [
+                    new LocatorLayer
+                    {
+                        Kind = "UiaStructural",
+                        Enabled = true,
+                        ConfidenceThreshold = 0.9,
+                        AutomationId = "TbInput",
+                        ControlType = "Edit",
+                        Name = "Input",
+                    },
+                ],
+            },
+        });
 
     private void AddStep(ScriptStep step)
     {
@@ -453,7 +478,8 @@ public partial class MainWindow : Window
         // Opt-in failure screenshot: checked => true; unchecked => clear override (inherit project default = off).
         step.CaptureFailureScreenshot = StepCaptureFailureScreenshotBox.IsChecked == true ? true : null;
 
-        if (string.Equals(step.Type, "Click", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(step.Type, "Click", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(step.Type, "Type", StringComparison.OrdinalIgnoreCase))
         {
             step.Locator ??= new LocatorChain();
             step.Locator.Scope ??= new ProcessWindowScope();
@@ -472,29 +498,32 @@ public partial class MainWindow : Window
             uia.ControlType = NullIfBlank(StepControlTypeBox.Text);
             uia.Name = NullIfBlank(StepNameBox.Text);
 
-            // Keep Image token (thumbnail hash) and model in sync.
-            var tokenHash = NullIfBlank(StepImageHashBox.Text);
-            var image = step.Locator.Layers
-                .FirstOrDefault(l => string.Equals(l.Kind, "Image", StringComparison.OrdinalIgnoreCase));
-            if (tokenHash is not null)
+            // Image tokens are Click-only (template match target).
+            if (string.Equals(step.Type, "Click", StringComparison.OrdinalIgnoreCase))
             {
-                if (image is null)
+                var tokenHash = NullIfBlank(StepImageHashBox.Text);
+                var image = step.Locator.Layers
+                    .FirstOrDefault(l => string.Equals(l.Kind, "Image", StringComparison.OrdinalIgnoreCase));
+                if (tokenHash is not null)
                 {
-                    image = new LocatorLayer
+                    if (image is null)
                     {
-                        Kind = "Image",
-                        Enabled = true,
-                        ConfidenceThreshold = 0.85,
-                    };
-                    step.Locator.Layers.Add(image);
-                }
+                        image = new LocatorLayer
+                        {
+                            Kind = "Image",
+                            Enabled = true,
+                            ConfidenceThreshold = 0.85,
+                        };
+                        step.Locator.Layers.Add(image);
+                    }
 
-                image.ImageAssetHash = tokenHash;
-                image.Enabled = true;
-            }
-            else if (image is not null)
-            {
-                step.Locator.Layers.Remove(image);
+                    image.ImageAssetHash = tokenHash;
+                    image.Enabled = true;
+                }
+                else if (image is not null)
+                {
+                    step.Locator.Layers.Remove(image);
+                }
             }
         }
     }
@@ -587,11 +616,12 @@ public partial class MainWindow : Window
         StepTypeBox.IsEnabled = hasSelection;
         StepWaitMsBox.IsEnabled = hasSelection && isWait;
         StepTextBox.IsEnabled = hasSelection && isType;
-        StepProcessBox.IsEnabled = hasSelection && isClick;
-        StepWindowBox.IsEnabled = hasSelection && isClick;
-        StepAutomationIdBox.IsEnabled = hasSelection && isClick;
-        StepControlTypeBox.IsEnabled = hasSelection && isClick;
-        StepNameBox.IsEnabled = hasSelection && isClick;
+        var needsLocator = isClick || isType;
+        StepProcessBox.IsEnabled = hasSelection && needsLocator;
+        StepWindowBox.IsEnabled = hasSelection && needsLocator;
+        StepAutomationIdBox.IsEnabled = hasSelection && needsLocator;
+        StepControlTypeBox.IsEnabled = hasSelection && needsLocator;
+        StepNameBox.IsEnabled = hasSelection && needsLocator;
         StepImageTokenBorder.IsEnabled = hasSelection && isClick;
         ClearImageTokenButton.IsEnabled = hasSelection && isClick && !string.IsNullOrWhiteSpace(StepImageHashBox.Text);
         StepCaptureFailureScreenshotBox.IsEnabled = hasSelection;

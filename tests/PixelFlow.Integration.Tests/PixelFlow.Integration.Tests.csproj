@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PixelFlow.Core\PixelFlow.Core.csproj" />
     <ProjectReference Include="..\..\src\PixelFlow.Studio\PixelFlow.Studio.csproj" />
+    <ProjectReference Include="..\..\src\PixelFlow.Runner\PixelFlow.Runner.csproj" />
   </ItemGroup>
 
 </Project>

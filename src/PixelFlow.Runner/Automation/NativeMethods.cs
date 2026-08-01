@@ -9,7 +9,14 @@ internal static class NativeMethods
     public const uint MouseeventfLeftUp = 0x0004;
     public const uint MouseeventfAbsolute = 0x8000;
     public const uint MouseeventfMove = 0x0001;
+    /// <summary>Maps absolute SendInput coords onto the entire virtual desktop (multi-monitor).</summary>
+    public const uint MouseeventfVirtualDesk = 0x4000;
     public const uint InputMouse = 0;
+    public const uint InputKeyboard = 1;
+    public const uint KeyeventfKeyUp = 0x0002;
+    public const ushort VkControl = 0x11;
+    public const ushort VkV = 0x56;
+    public const ushort VkA = 0x41;
     public const int GwHwndNext = 2;
     public const int GwChild = 5;
     public const int GwlId = -12;
@@ -139,6 +146,9 @@ internal static class NativeMethods
     {
         [FieldOffset(0)]
         public MouseInput Mi;
+
+        [FieldOffset(0)]
+        public KeyboardInput Ki;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -147,6 +157,16 @@ internal static class NativeMethods
         public int Dx;
         public int Dy;
         public uint MouseData;
+        public uint DwFlags;
+        public uint Time;
+        public IntPtr DwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KeyboardInput
+    {
+        public ushort Vk;
+        public ushort Scan;
         public uint DwFlags;
         public uint Time;
         public IntPtr DwExtraInfo;

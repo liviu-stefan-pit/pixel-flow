@@ -37,7 +37,9 @@ public sealed class RunnerFixtureMatrixTests
         using var workspace = FixtureWorkspace.CreateCopy(fixtureName);
         var result = await RunnerCli.RunProjectAsync(workspace.ProjectFolder);
 
-        Assert.Equal(0, result.ExitCode);
+        Assert.True(
+            result.ExitCode == 0,
+            $"Fixture '{fixtureName}' exit {result.ExitCode}. stdout:\n{result.StdOut}\nstderr:\n{result.StdErr}");
 
         var events = ReadLatestEvents(workspace.ProjectFolder);
         var finished = Assert.Single(events, e => e.Event == RunReportEventNames.StepFinished && e.StepId == stepId);

@@ -1,15 +1,20 @@
 using System.Runtime.InteropServices;
+using PixelFlow.Core.Coordinates;
 using PixelFlow.Core.Runner;
 
 namespace PixelFlow.Runner.Automation;
 
 /// <summary>
 /// Physical mouse click at the center of a screen rect (for Win32/OCR/Image targets without Invoke).
+/// Coordinates are physical pixels under Per-Monitor V2; SendInput absolute mapping uses the
+/// virtual desktop (not primary-only metrics).
 /// </summary>
 internal static class SendInputClick
 {
-    private const int SmCxScreen = 0;
-    private const int SmCyScreen = 1;
+    private const int SmXVirtualScreen = 76;
+    private const int SmYVirtualScreen = 77;
+    private const int SmCxVirtualScreen = 78;
+    private const int SmCyVirtualScreen = 79;
 
     public static void ClickCenter(ScreenRect bounds)
     {
@@ -25,16 +30,17 @@ internal static class SendInputClick
 
     public static void ClickAbsolute(int x, int y)
     {
-        var screenW = NativeMethods.GetSystemMetrics(SmCxScreen);
-        var screenH = NativeMethods.GetSystemMetrics(SmCyScreen);
-        if (screenW <= 1 || screenH <= 1)
+        var virtualLeft = NativeMethods.GetSystemMetrics(SmXVirtualScreen);
+        var virtualTop = NativeMethods.GetSystemMetrics(SmYVirtualScreen);
+        var virtualWidth = NativeMethods.GetSystemMetrics(SmCxVirtualScreen);
+        var virtualHeight = NativeMethods.GetSystemMetrics(SmCyVirtualScreen);
+        if (virtualWidth <= 1 || virtualHeight <= 1)
         {
-            throw new InvalidOperationException("Unable to read primary screen metrics for SendInput.");
+            throw new InvalidOperationException("Unable to read virtual screen metrics for SendInput.");
         }
 
-        // Absolute SendInput uses 0..65535 normalized coordinates.
-        var absX = (int)Math.Round(x * 65535.0 / (screenW - 1));
-        var absY = (int)Math.Round(y * 65535.0 / (screenH - 1));
+        var (absX, absY) = DpiCoordinates.PhysicalToSendInputAbsolute(
+            x, y, virtualLeft, virtualTop, virtualWidth, virtualHeight);
 
         var inputs = new NativeMethods.Input[3];
         inputs[0] = MouseMove(absX, absY);
@@ -88,7 +94,9 @@ internal static class SendInputClick
                 {
                     Dx = absX,
                     Dy = absY,
-                    DwFlags = NativeMethods.MouseeventfMove | NativeMethods.MouseeventfAbsolute,
+                    DwFlags = NativeMethods.MouseeventfMove
+                        | NativeMethods.MouseeventfAbsolute
+                        | NativeMethods.MouseeventfVirtualDesk,
                 },
             },
         };
@@ -101,7 +109,9 @@ internal static class SendInputClick
             {
                 Mi = new NativeMethods.MouseInput
                 {
-                    DwFlags = flag | NativeMethods.MouseeventfAbsolute,
+                    DwFlags = flag
+                        | NativeMethods.MouseeventfAbsolute
+                        | NativeMethods.MouseeventfVirtualDesk,
                 },
             },
         };

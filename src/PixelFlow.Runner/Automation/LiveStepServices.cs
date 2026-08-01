@@ -7,8 +7,9 @@ using PixelFlow.Core.Runner;
 namespace PixelFlow.Runner.Automation;
 
 /// <summary>
-/// Live resolve / re-check / click / post-check for Click steps; Wait remains timing-only.
+/// Live resolve / re-check / click / paste-type / post-check.
 /// Resolves via ordered locator chain (UIA → Win32 → OCR → Image). Never clicks without a fresh resolve.
+/// Type steps paste via the clipboard and always restore prior clipboard contents afterward.
 /// </summary>
 internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepExecutor
 {
@@ -19,6 +20,7 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
     private readonly IRunnerDelay _delay;
     private readonly string? _projectFolder;
     private readonly Dictionary<string, int> _counterBeforeByStep = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _expectedTypeTextByStep = new(StringComparer.Ordinal);
 
     public LiveStepServices(string? projectFolder = null, IRunnerDelay? delay = null)
     {
@@ -35,6 +37,11 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
             return new ResolveResult(Found: true, CandidateId: $"wait:{step.Id}");
         }
 
+        if (IsType(step) && string.IsNullOrEmpty(step.Text))
+        {
+            return ResolveResult.NotFound($"Type step '{step.Id}' has empty Text.");
+        }
+
         var result = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
             .ConfigureAwait(false);
 
@@ -44,10 +51,17 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         }
         else
         {
+            var dpi = result.BoundingRect.IsEmpty
+                ? 0u
+                : MonitorDpi.GetDpiForPhysicalPoint(
+                    (int)Math.Round(result.BoundingRect.X + result.BoundingRect.Width / 2.0),
+                    (int)Math.Round(result.BoundingRect.Y + result.BoundingRect.Height / 2.0));
+
             Console.WriteLine(
                 $"[runner] Resolve hit (step {step.Id}): layer={result.MatchedLayer}, " +
                 $"confidence={result.Confidence:0.###}, AutomationId={result.AutomationId}, " +
-                $"Name={result.Name}, ControlType={result.ControlType}, Bounds={result.BoundingRect}");
+                $"Name={result.Name}, ControlType={result.ControlType}, Bounds={result.BoundingRect}, " +
+                $"dpi={dpi}");
         }
 
         return result;
@@ -80,7 +94,7 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
             return false;
         }
 
-        if (TryReadClickCount(step.Locator?.Scope, out var count))
+        if (IsClick(step) && TryReadClickCount(step.Locator?.Scope, out var count))
         {
             _counterBeforeByStep[step.Id] = count;
             Console.WriteLine($"[runner] Pre-check counter snapshot (step {step.Id}): {count}");
@@ -88,6 +102,15 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         else
         {
             _counterBeforeByStep.Remove(step.Id);
+        }
+
+        if (IsType(step))
+        {
+            _expectedTypeTextByStep[step.Id] = step.Text ?? "";
+        }
+        else
+        {
+            _expectedTypeTextByStep.Remove(step.Id);
         }
 
         return true;
@@ -112,7 +135,13 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!string.Equals(step.Type, "Click", StringComparison.OrdinalIgnoreCase))
+        if (IsType(step))
+        {
+            await ExecuteTypeAsync(step, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (!IsClick(step))
         {
             throw new InvalidOperationException(
                 $"Live executor does not support step type '{step.Type}' yet (step {step.Id}).");
@@ -161,7 +190,12 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
             return Task.FromResult(true);
         }
 
-        if (!string.Equals(step.Type, "Click", StringComparison.OrdinalIgnoreCase))
+        if (IsType(step))
+        {
+            return Task.FromResult(VerifyTypeAfter(step));
+        }
+
+        if (!IsClick(step))
         {
             return Task.FromResult(true);
         }
@@ -188,6 +222,109 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
                 ? $"[runner] Post-check OK (step {step.Id}): counter {before} -> {after}"
                 : $"[runner] Post-check FAILED (step {step.Id}): expected {before + 1}, got {after}");
         return Task.FromResult(ok);
+    }
+
+    private async Task ExecuteTypeAsync(ScriptStep step, CancellationToken cancellationToken)
+    {
+        var text = step.Text ?? "";
+        var live = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
+            .ConfigureAwait(false);
+        if (!live.Found || live.BoundingRect.IsEmpty)
+        {
+            throw new InvalidOperationException(
+                $"Refusing to type: target not found at execute time ({live.FailureReason}).");
+        }
+
+        // Focus the field (click center), then paste via clipboard with guaranteed restore.
+        Console.WriteLine(
+            $"[runner] Type focus click at {live.BoundingRect} (step {step.Id}, layer={live.MatchedLayer})");
+        FocusResolvedTarget(step, live);
+
+        // Small settle so the Edit control accepts keyboard focus before Ctrl+V.
+        await _delay.DelayAsync(50, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var clipboard = ClipboardGuard.ReplaceWith(text);
+        try
+        {
+            Console.WriteLine($"[runner] Type paste via clipboard (step {step.Id}, length={text.Length})");
+            SendInputKeyboard.SelectAll();
+            await _delay.DelayAsync(20, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            SendInputKeyboard.Paste();
+            await _delay.DelayAsync(50, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Restore even if paste / cancel fails mid-step.
+            clipboard.Restore();
+            Console.WriteLine($"[runner] Clipboard restored after Type (step {step.Id})");
+        }
+    }
+
+    private static void FocusResolvedTarget(ScriptStep step, ResolveResult live)
+    {
+        // Prefer UIA SetFocus when we can re-find the element; otherwise SendInput click.
+        var layer = step.Locator?.Layers.FirstOrDefault(l =>
+            l.Enabled
+            && (string.Equals(l.Kind, LocatorKinds.UiaStructural, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(l.Kind, LocatorKinds.UiaSemantic, StringComparison.OrdinalIgnoreCase)));
+
+        if (layer is not null
+            && UiaStructuralLocator.TryFindElement(
+                string.Equals(live.MatchedLayer, LocatorKinds.UiaSemantic, StringComparison.OrdinalIgnoreCase)
+                    ? new LocatorLayer
+                    {
+                        Kind = LocatorKinds.UiaSemantic,
+                        Enabled = true,
+                        Name = layer.Name,
+                        ControlType = layer.ControlType,
+                    }
+                    : layer,
+                step.Locator!.Scope,
+                out var element,
+                out _)
+            && element is not null)
+        {
+            try
+            {
+                element.SetFocus();
+                return;
+            }
+            catch (ElementNotAvailableException)
+            {
+                // Fall through to SendInput click.
+            }
+            catch (InvalidOperationException)
+            {
+                // Some controls reject SetFocus; click instead.
+            }
+        }
+
+        SendInputClick.ClickCenter(live.BoundingRect);
+    }
+
+    private bool VerifyTypeAfter(ScriptStep step)
+    {
+        if (!_expectedTypeTextByStep.TryGetValue(step.Id, out var expected))
+        {
+            expected = step.Text ?? "";
+        }
+
+        Thread.Sleep(50);
+
+        if (!TryReadEditValue(step.Locator, out var actual))
+        {
+            Console.WriteLine($"[runner] Post-check failed (step {step.Id}): edit value unreadable after Type.");
+            return false;
+        }
+
+        var ok = string.Equals(actual, expected, StringComparison.Ordinal);
+        Console.WriteLine(
+            ok
+                ? $"[runner] Post-check OK (step {step.Id}): typed value matches"
+                : $"[runner] Post-check FAILED (step {step.Id}): expected '{expected}', got '{actual}'");
+        return ok;
     }
 
     private static void TryInvokeUia(ScriptStep step, ResolveResult live)
@@ -240,6 +377,53 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
 
     private static bool IsWait(ScriptStep step) =>
         string.Equals(step.Type, "Wait", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsClick(ScriptStep step) =>
+        string.Equals(step.Type, "Click", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsType(ScriptStep step) =>
+        string.Equals(step.Type, "Type", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryReadEditValue(LocatorChain? chain, out string value)
+    {
+        value = "";
+        if (chain is null)
+        {
+            return false;
+        }
+
+        var layer = chain.Layers.FirstOrDefault(l =>
+            l.Enabled
+            && (string.Equals(l.Kind, LocatorKinds.UiaStructural, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(l.Kind, LocatorKinds.UiaSemantic, StringComparison.OrdinalIgnoreCase)));
+        if (layer is null)
+        {
+            return false;
+        }
+
+        if (!UiaStructuralLocator.TryFindElement(layer, chain.Scope, out var element, out _)
+            || element is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            if (element.TryGetCurrentPattern(ValuePattern.Pattern, out var patternObj)
+                && patternObj is ValuePattern valuePattern)
+            {
+                value = valuePattern.Current.Value ?? "";
+                return true;
+            }
+
+            value = element.Current.Name ?? "";
+            return true;
+        }
+        catch (ElementNotAvailableException)
+        {
+            return false;
+        }
+    }
 
     private static bool TryReadClickCount(ProcessWindowScope? scope, out int count)
     {

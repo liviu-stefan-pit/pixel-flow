@@ -1,4 +1,5 @@
-﻿using PixelFlow.Core.Diagnostics;
+﻿using PixelFlow.Core.Coordinates;
+using PixelFlow.Core.Diagnostics;
 using PixelFlow.Core.Projects;
 using PixelFlow.Core.Runner;
 using PixelFlow.Runner.Automation;
@@ -117,7 +118,14 @@ internal static class Program
         var reportDirectory = reporter.ReportDirectory;
         Console.WriteLine($"[runner] Writing run report: {reportDirectory}");
 
-        var services = new LiveStepServices(projectFolder);
+        var display = new DisplayChangeTracker(DisplayChangeWatcher.CaptureTopology());
+        var coordinateCache = new AbsoluteCoordinateCache(display);
+        using var displayWatcher = new DisplayChangeWatcher(display);
+
+        var services = new LiveStepServices(
+            projectFolder,
+            display: display,
+            coordinateCache: coordinateCache);
         var interference = new Win32UserInterferenceDetector();
         var engine = new RunnerEngine(
             services,
@@ -199,6 +207,7 @@ internal static class Program
 
             Studio starts this process with --pipe for run/pause/resume/stop.
             Emergency stop (global): Ctrl+Shift+F12 — aborts the active run even if another window has focus.
+            Display changes (monitor add/remove/resolution) invalidate cached absolute coords and force re-resolve.
             Each run writes reports/run-*/events.jsonl (P21). Opt-in failure screenshots (P22) when
             defaults.captureFailureScreenshots or step.captureFailureScreenshot is true.
             Use --resolve (P07) to print UIA structural match info for the Test Bench button.

@@ -14,7 +14,12 @@ public sealed record ResolveResult(
     int ProcessId = 0,
     string? MatchedLayer = null,
     double Confidence = 0,
-    nint NativeHandle = 0)
+    nint NativeHandle = 0,
+    /// <summary>
+    /// <see cref="Coordinates.IDisplayChangeTracker.Generation"/> at capture time.
+    /// Absolute clicks must re-resolve when the tracker reports this generation as stale.
+    /// </summary>
+    long DisplayGeneration = 0)
 {
     public static ResolveResult NotFound(string reason) =>
         new(Found: false, FailureReason: reason);

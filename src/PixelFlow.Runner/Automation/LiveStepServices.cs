@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows.Automation;
+using PixelFlow.Core.Coordinates;
 using PixelFlow.Core.Projects;
 using PixelFlow.Core.Runner;
 
@@ -9,6 +10,8 @@ namespace PixelFlow.Runner.Automation;
 /// <summary>
 /// Live resolve / re-check / click / paste-type / post-check.
 /// Resolves via ordered locator chain (UIA → Win32 → OCR → Image). Never clicks without a fresh resolve.
+/// Absolute bounds are stamped with the display generation; a display-change busts the cache and
+/// forces re-resolve so stale coordinates are never clicked.
 /// Type steps paste via the clipboard and always restore prior clipboard contents afterward.
 /// </summary>
 internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepExecutor
@@ -19,14 +22,28 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
 
     private readonly IRunnerDelay _delay;
     private readonly string? _projectFolder;
+    private readonly IDisplayChangeTracker _display;
+    private readonly AbsoluteCoordinateCache _coordinateCache;
     private readonly Dictionary<string, int> _counterBeforeByStep = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _expectedTypeTextByStep = new(StringComparer.Ordinal);
 
-    public LiveStepServices(string? projectFolder = null, IRunnerDelay? delay = null)
+    public LiveStepServices(
+        string? projectFolder = null,
+        IRunnerDelay? delay = null,
+        IDisplayChangeTracker? display = null,
+        AbsoluteCoordinateCache? coordinateCache = null)
     {
         _projectFolder = projectFolder;
         _delay = delay ?? new SystemRunnerDelay();
+        _display = display ?? new DisplayChangeTracker(DisplayChangeWatcher.CaptureTopology());
+        _coordinateCache = coordinateCache ?? new AbsoluteCoordinateCache(_display);
     }
+
+    /// <summary>Exposed for tests / diagnostics.</summary>
+    internal IDisplayChangeTracker Display => _display;
+
+    /// <summary>Exposed for tests / diagnostics.</summary>
+    internal AbsoluteCoordinateCache CoordinateCache => _coordinateCache;
 
     public async Task<ResolveResult> ResolveAsync(ScriptStep step, CancellationToken cancellationToken)
     {
@@ -34,7 +51,10 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
 
         if (IsWait(step))
         {
-            return new ResolveResult(Found: true, CandidateId: $"wait:{step.Id}");
+            return new ResolveResult(
+                Found: true,
+                CandidateId: $"wait:{step.Id}",
+                DisplayGeneration: _display.Generation);
         }
 
         if (IsType(step) && string.IsNullOrEmpty(step.Text))
@@ -48,21 +68,22 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         if (!result.Found)
         {
             Console.WriteLine($"[runner] Resolve miss (step {step.Id}): {result.FailureReason}");
+            return result;
         }
-        else
-        {
-            var dpi = result.BoundingRect.IsEmpty
-                ? 0u
-                : MonitorDpi.GetDpiForPhysicalPoint(
-                    (int)Math.Round(result.BoundingRect.X + result.BoundingRect.Width / 2.0),
-                    (int)Math.Round(result.BoundingRect.Y + result.BoundingRect.Height / 2.0));
 
-            Console.WriteLine(
-                $"[runner] Resolve hit (step {step.Id}): layer={result.MatchedLayer}, " +
-                $"confidence={result.Confidence:0.###}, AutomationId={result.AutomationId}, " +
-                $"Name={result.Name}, ControlType={result.ControlType}, Bounds={result.BoundingRect}, " +
-                $"dpi={dpi}");
-        }
+        result = StampAndCache(step.Id, result);
+
+        var dpi = result.BoundingRect.IsEmpty
+            ? 0u
+            : MonitorDpi.GetDpiForPhysicalPoint(
+                (int)Math.Round(result.BoundingRect.X + result.BoundingRect.Width / 2.0),
+                (int)Math.Round(result.BoundingRect.Y + result.BoundingRect.Height / 2.0));
+
+        Console.WriteLine(
+            $"[runner] Resolve hit (step {step.Id}): layer={result.MatchedLayer}, " +
+            $"confidence={result.Confidence:0.###}, AutomationId={result.AutomationId}, " +
+            $"Name={result.Name}, ControlType={result.ControlType}, Bounds={result.BoundingRect}, " +
+            $"dpi={dpi}, displayGen={result.DisplayGeneration}");
 
         return result;
     }
@@ -84,13 +105,30 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
             return false;
         }
 
-        // Re-resolve immediately before input (stale handle / closed window / moved UI).
+        // Re-resolve immediately before input (stale handle / closed window / moved UI / display change).
+        if (_display.IsStale(candidate.DisplayGeneration))
+        {
+            Console.WriteLine(
+                $"[runner] Pre-check: display generation stale " +
+                $"(captured={candidate.DisplayGeneration}, current={_display.Generation}) — re-resolving");
+            _coordinateCache.Clear("stale-precheck");
+        }
+
         var live = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
             .ConfigureAwait(false);
         if (!live.Found || live.BoundingRect.IsEmpty)
         {
             Console.WriteLine(
                 $"[runner] Pre-check failed (step {step.Id}): {live.FailureReason ?? "empty bounds"}");
+            return false;
+        }
+
+        live = StampAndCache(step.Id, live);
+        if (_display.IsStale(live.DisplayGeneration))
+        {
+            Console.WriteLine(
+                $"[runner] Pre-check failed (step {step.Id}): display changed during resolve");
+            _coordinateCache.Clear("stale-during-precheck");
             return false;
         }
 
@@ -147,13 +185,27 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
                 $"Live executor does not support step type '{step.Type}' yet (step {step.Id}).");
         }
 
-        // Final re-resolve: never click by absolute screen guess if the target is gone.
-        var live = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
-            .ConfigureAwait(false);
+        // Final re-resolve: never click by absolute screen guess if the target is gone
+        // or the display configuration changed since the planning resolve.
+        if (_display.IsStale(candidate.DisplayGeneration))
+        {
+            Console.WriteLine(
+                $"[runner] Execute: display change invalidated cached coords " +
+                $"(captured={candidate.DisplayGeneration}, current={_display.Generation}) — re-resolving");
+            _coordinateCache.Clear("stale-execute");
+        }
+
+        var live = await ResolveFreshForInputAsync(step, cancellationToken).ConfigureAwait(false);
         if (!live.Found || live.BoundingRect.IsEmpty)
         {
             throw new InvalidOperationException(
                 $"Refusing to click: target not found at execute time ({live.FailureReason}).");
+        }
+
+        if (_display.IsStale(live.DisplayGeneration))
+        {
+            throw new InvalidOperationException(
+                "Refusing to click: display configuration changed during resolve (stale absolute coords).");
         }
 
         var layer = live.MatchedLayer ?? "";
@@ -173,9 +225,7 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
             return;
         }
 
-        Console.WriteLine(
-            $"[runner] SendInput click at {live.BoundingRect} (step {step.Id}, layer={layer}, confidence={live.Confidence:0.###})");
-        SendInputClick.ClickCenter(live.BoundingRect);
+        ClickAbsoluteFresh(step.Id, live);
     }
 
     public Task<bool> VerifyAfterExecuteAsync(
@@ -227,12 +277,17 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
     private async Task ExecuteTypeAsync(ScriptStep step, CancellationToken cancellationToken)
     {
         var text = step.Text ?? "";
-        var live = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
-            .ConfigureAwait(false);
+        var live = await ResolveFreshForInputAsync(step, cancellationToken).ConfigureAwait(false);
         if (!live.Found || live.BoundingRect.IsEmpty)
         {
             throw new InvalidOperationException(
                 $"Refusing to type: target not found at execute time ({live.FailureReason}).");
+        }
+
+        if (_display.IsStale(live.DisplayGeneration))
+        {
+            throw new InvalidOperationException(
+                "Refusing to type: display configuration changed during resolve (stale absolute coords).");
         }
 
         // Focus the field (click center), then paste via clipboard with guaranteed restore.
@@ -262,7 +317,54 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         }
     }
 
-    private static void FocusResolvedTarget(ScriptStep step, ResolveResult live)
+    private async Task<ResolveResult> ResolveFreshForInputAsync(
+        ScriptStep step,
+        CancellationToken cancellationToken)
+    {
+        var live = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
+            .ConfigureAwait(false);
+        if (!live.Found)
+        {
+            return live;
+        }
+
+        return StampAndCache(step.Id, live);
+    }
+
+    private ResolveResult StampAndCache(string stepId, ResolveResult result)
+    {
+        var generation = _display.Generation;
+        var stamped = result with { DisplayGeneration = generation };
+        if (!stamped.BoundingRect.IsEmpty)
+        {
+            _coordinateCache.Store(stepId, stamped.BoundingRect, generation);
+        }
+
+        return stamped;
+    }
+
+    private void ClickAbsoluteFresh(string stepId, ResolveResult live)
+    {
+        if (_display.IsStale(live.DisplayGeneration))
+        {
+            throw new InvalidOperationException(
+                "Refusing to click: display configuration changed before SendInput (stale absolute coords).");
+        }
+
+        // Prefer live bounds; never fall back to a cache entry after invalidation.
+        if (!_coordinateCache.TryGet(stepId, out _))
+        {
+            Console.WriteLine(
+                $"[runner] Absolute coords cache miss/invalidated (step {stepId}); using live resolve bounds");
+        }
+
+        Console.WriteLine(
+            $"[runner] SendInput click at {live.BoundingRect} (step {stepId}, " +
+            $"layer={live.MatchedLayer}, confidence={live.Confidence:0.###}, displayGen={live.DisplayGeneration})");
+        SendInputClick.ClickCenter(live.BoundingRect);
+    }
+
+    private void FocusResolvedTarget(ScriptStep step, ResolveResult live)
     {
         // Prefer UIA SetFocus when we can re-find the element; otherwise SendInput click.
         var layer = step.Locator?.Layers.FirstOrDefault(l =>
@@ -301,7 +403,7 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
             }
         }
 
-        SendInputClick.ClickCenter(live.BoundingRect);
+        ClickAbsoluteFresh(step.Id, live);
     }
 
     private bool VerifyTypeAfter(ScriptStep step)
@@ -327,7 +429,7 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         return ok;
     }
 
-    private static void TryInvokeUia(ScriptStep step, ResolveResult live)
+    private void TryInvokeUia(ScriptStep step, ResolveResult live)
     {
         // Prefer InvokePattern when the winning layer was UIA; fall back to SendInput on bounds.
         var layer = step.Locator?.Layers.FirstOrDefault(l =>
@@ -372,7 +474,7 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
                 $"[runner] No InvokePattern ({failure}); SendInput fallback (step {step.Id})");
         }
 
-        SendInputClick.ClickCenter(live.BoundingRect);
+        ClickAbsoluteFresh(step.Id, live);
     }
 
     private static bool IsWait(ScriptStep step) =>

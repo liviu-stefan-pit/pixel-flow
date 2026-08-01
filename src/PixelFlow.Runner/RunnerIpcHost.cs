@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using System.Text.Json.Nodes;
+using PixelFlow.Core.Coordinates;
 using PixelFlow.Core.Diagnostics;
 using PixelFlow.Core.Ipc;
 using PixelFlow.Core.Projects;
@@ -18,6 +19,9 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
     private readonly RunReportStore _reportStore = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly EmergencyStopHotkey _emergencyStop;
+    private readonly DisplayChangeTracker _display;
+    private readonly AbsoluteCoordinateCache _coordinateCache;
+    private readonly DisplayChangeWatcher _displayWatcher;
     private RunnerEngine? _engine;
     private Task? _runTask;
     private IpcPipeConnection? _connection;
@@ -28,6 +32,9 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pipeName);
         _pipeName = pipeName;
+        _display = new DisplayChangeTracker(DisplayChangeWatcher.CaptureTopology());
+        _coordinateCache = new AbsoluteCoordinateCache(_display);
+        _displayWatcher = new DisplayChangeWatcher(_display);
         _emergencyStop = new EmergencyStopHotkey(OnEmergencyStop);
     }
 
@@ -208,7 +215,10 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
         Console.WriteLine($"[runner] Writing run report: {reporter.ReportDirectory}");
         await SendLogAsync("info", $"Run report: {reporter.ReportDirectory}").ConfigureAwait(false);
 
-        var live = new LiveStepServices(projectFolder);
+        var live = new LiveStepServices(
+            projectFolder,
+            display: _display,
+            coordinateCache: _coordinateCache);
         var interference = new Win32UserInterferenceDetector();
         _engine = new RunnerEngine(
             live,
@@ -385,6 +395,7 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
         }
 
         _emergencyStop.Dispose();
+        _displayWatcher.Dispose();
         _shutdown.Dispose();
     }
 }

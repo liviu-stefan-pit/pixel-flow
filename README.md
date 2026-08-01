@@ -246,6 +246,18 @@ Studio, Runner, and Test Bench declare **Per-Monitor V2** DPI awareness (`app.ma
 dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/click-submit.pflow
 ```
 
+### P27 — display-change invalidation
+
+Monitor add/remove/resolution change (`WM_DISPLAYCHANGE`) bumps a display generation, clears the absolute-coordinate cache, and forces re-resolve before input. Stale physical coords from before the change are never clicked.
+
+```powershell
+# Watcher arms on run; resolve logs include displayGen=:
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/click-submit.pflow
+# Optionally change display settings mid-run / between resolve and click — next action re-resolves or fails safely.
+```
+
+Live cover: `DisplayChangeInvalidationTests` (simulated `Invalidate` + CLI `displayGen=` / watcher armed).
+
 ## Run Test Bench
 
 ```powershell
@@ -262,14 +274,19 @@ dotnet test PixelFlow.slnx --filter Category!=Live               # unit tests (a
 dotnet test PixelFlow.slnx --filter Category=Live                # Live: real Runner + Test Bench, needs an interactive Windows desktop
 ```
 
-- **`PixelFlow.Core.Tests`** — pure unit tests (project model, IPC schema, locator ranking, run reports, screenshot capture flag). No desktop/process dependency.
+After every phase, agents must run **both** filters (full suite) before marking Done — see [agent-phase-prompt.md](docs/agent-phase-prompt.md).
+
+- **`PixelFlow.Core.Tests`** — pure unit tests (project model, IPC schema, locator ranking, run reports, screenshot capture flag, DPI/display invalidation). No desktop/process dependency.
 - **`PixelFlow.Studio.Tests`** — Studio-facing pure-helper tests (`ImageTokenLoader` path/hash round-trips, **Last report** summary formatting). WPF types only, no window is shown.
 - **`PixelFlow.Integration.Tests`** (`Category=Live`) — launches real `PixelFlow.Runner`/`PixelFlow.TestBench` processes against a temp copy of each fixture (never dirties `fixtures/projects/*/reports/`):
   - Full locator fixture matrix (`click-submit`, `chain-uia-wins`, `chain-win32-fallback`, `win32-click`, `ocr-click`, `image-click`, and their miss counterparts) asserting exit code + `events.jsonl` layer/outcome/confidence.
+  - Cross-phase **regression smoke** (`RegressionSmokeTests`): multi-step click+type (`smoke-click-type`), retry budget wall-time, `--resolve` hit/miss, sequential UIA→Win32→OCR on one Test Bench, Studio IPC fail-then-succeed session reuse.
   - P22 screenshot on/off assertions (PNG present + `screenshot` field vs. no PNG).
+  - P23 recovery skip/jump/abort fixtures.
   - P25 type/paste clipboard restore (`type-paste` + `ClipboardAndDpiTests`).
   - P26 DPI helpers + Per-Monitor V2 click smoke at current scaling.
-  - Studio↔Runner IPC contract via `RunnerSession` (the same class Studio's buttons call): Run, Pause/Resume, Stop/Abort, and killing the Runner process mid-run.
+  - P27 display-change invalidation (coordinate cache bust + forced re-resolve; `WM_DISPLAYCHANGE` watcher).
+  - Studio↔Runner IPC contract via `RunnerSession` (the same class Studio's buttons call): Run, Pause/Resume, Stop/Abort, interference pause, and killing the Runner process mid-run.
   - Starts `PixelFlow.TestBench` automatically (reuses an already-running instance if found) and skips cleanly (not a hard failure) if no interactive desktop is available.
 
 ## Layout
@@ -287,4 +304,4 @@ dotnet test PixelFlow.slnx --filter Category=Live                # Live: real Ru
 
 ## Status
 
-Phases **P00–P26** implemented (clipboard restore on Type/paste, DPI-aware coordinates). See [docs/phases.md](docs/phases.md).
+Phases **P00–P27** implemented (display-change invalidation of absolute coordinates). See [docs/phases.md](docs/phases.md).

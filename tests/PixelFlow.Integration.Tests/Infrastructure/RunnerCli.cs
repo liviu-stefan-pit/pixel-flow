@@ -7,20 +7,38 @@ namespace PixelFlow.Integration.Tests.Infrastructure;
 internal sealed record RunnerCliResult(int ExitCode, string StdOut, string StdErr, TimeSpan Elapsed);
 
 /// <summary>
-/// Launches PixelFlow.Runner headlessly with <c>--run-project</c>, reusing the exact binary
-/// resolution Studio uses to start the Runner process (<see cref="RepoPaths.ResolveRunnerLaunch"/>).
+/// Launches PixelFlow.Runner headlessly, reusing the exact binary resolution Studio uses
+/// (<see cref="RepoPaths.ResolveRunnerLaunch"/>).
 /// </summary>
 internal static class RunnerCli
 {
-    public static async Task<RunnerCliResult> RunProjectAsync(
+    public static Task<RunnerCliResult> RunProjectAsync(
         string projectFolder,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        var args = $"--run-project \"{projectFolder}\"";
+        return RunAsync(args, timeout, cancellationToken);
+    }
+
+    public static Task<RunnerCliResult> ResolveAsync(
+        string? automationId = null,
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default)
+    {
+        var id = string.IsNullOrWhiteSpace(automationId) ? "TbSubmit" : automationId;
+        return RunAsync($"--resolve --automation-id {id}", timeout ?? TimeSpan.FromSeconds(30), cancellationToken);
+    }
+
+    public static async Task<RunnerCliResult> RunAsync(
+        string runnerArgs,
         TimeSpan? timeout = null,
         CancellationToken cancellationToken = default)
     {
         var (fileName, argsPrefix) = RepoPaths.ResolveRunnerLaunch();
         var args = string.IsNullOrEmpty(argsPrefix)
-            ? $"--run-project \"{projectFolder}\""
-            : $"{argsPrefix} --run-project \"{projectFolder}\"";
+            ? runnerArgs
+            : $"{argsPrefix} {runnerArgs}";
 
         var start = new ProcessStartInfo
         {

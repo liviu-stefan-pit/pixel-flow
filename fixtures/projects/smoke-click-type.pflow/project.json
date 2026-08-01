@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "name": "smoke-click-type",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 5000,
+    "retry": {
+      "maxAttempts": 3,
+      "backoffMs": 250
+    }
+  },
+  "steps": [
+    {
+      "id": "click-submit",
+      "type": "Click",
+      "timeoutMs": 5000,
+      "retry": {
+        "maxAttempts": 3,
+        "backoffMs": 250
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbSubmit",
+            "controlType": "Button",
+            "name": "Submit"
+          }
+        ]
+      }
+    },
+    {
+      "id": "type-input",
+      "type": "Type",
+      "timeoutMs": 5000,
+      "retry": {
+        "maxAttempts": 3,
+        "backoffMs": 250
+      },
+      "text": "smoke-e2e",
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbInput",
+            "controlType": "Edit",
+            "name": "Input"
+          }
+        ]
+      }
+    }
+  ]
+}

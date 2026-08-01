@@ -6,7 +6,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 1. Paste the prompt from [agent-phase-prompt.md](./agent-phase-prompt.md) into a new chat.
 2. Replace `PHASES` with one phase id (preferred) or a short consecutive range (e.g. `P01` or `P01-P02`).
-3. The **agent** implements, verifies (unit → integration → E2E / timing as applicable), fixes until green, then marks the phase `Done`.
+3. The **agent** implements, verifies (unit → integration → E2E / timing as applicable), runs the **full** `dotnet test` suite (`Category!=Live` then `Category=Live`), fixes until green, then marks the phase `Done`.
 4. You review the agent's evidence summary; you are not the primary QA. Only open a fix chat if you spot a defect the agent missed.
 5. Each phase's **Manual test** section is the **agent verification checklist** (historical name kept). The agent must execute it — not hand it to you.
 
@@ -18,7 +18,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 - Implement only the listed phase(s). Do not start later phases "while you're at it."
 - Prefer the smallest change that satisfies the phase Done criteria.
 - Do not add Python, packaging/signing, OCR, OpenCV, rich editor, or installer work unless the active phase explicitly requires it.
-- **Own testing:** build, unit/component tests, live/integration against Test Bench or fixtures when relevant, full verification checklist, and phase-scoped timing/performance checks. Fix failures before marking Done. Do not treat the human as the Done gate.
+- **Own testing:** build, unit/component tests, live/integration against Test Bench or fixtures when relevant, full verification checklist, phase-scoped timing/performance checks, then the **mandatory full suite** (`dotnet test PixelFlow.slnx --filter Category!=Live` and `--filter Category=Live`). Fix failures before marking Done. Do not treat the human as the Done gate.
 - After verification passes, update this file: set the completed phase status to `Done`. Leave other phases unchanged unless asked.
 - If the environment cannot run a required live check, set status `Blocked` and explain — do not mark `Done`.
 
@@ -55,7 +55,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P24 | User-interference detection | Done |
 | P25 | Clipboard restore on type/paste | Done |
 | P26 | DPI-aware coordinates | Done |
-| P27 | Display-change invalidation | Todo |
+| P27 | Display-change invalidation | Done |
 | P28 | Broader Test Bench surfaces | Todo |
 | P29 | Project trust prompt | Todo |
 | P30 | Secrets by reference | Todo |
@@ -392,7 +392,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P27 - Display-change invalidation
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Monitor add/remove/resolution change invalidates cached absolute coords and forces re-resolve.
 - **In scope:** Display change listener + cache bust.
 - **Out of scope:** Fancy UI prompts beyond a log/status message.

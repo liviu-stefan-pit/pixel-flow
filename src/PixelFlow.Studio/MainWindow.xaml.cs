@@ -1,4 +1,9 @@
-﻿using System.Windows;
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using Microsoft.Win32;
 using PixelFlow.Core.Projects;
 
 namespace PixelFlow.Studio;
@@ -6,15 +11,20 @@ namespace PixelFlow.Studio;
 public partial class MainWindow : Window
 {
     private readonly RunnerSession _session = new();
-    private readonly string _projectFolder;
+    private readonly ProjectStore _store = new();
     private readonly UiaInspectorService _inspector;
+    private readonly ObservableCollection<StepListItem> _stepItems = [];
+
+    private ProjectDocument _document = CreateBlankDocument();
+    private string? _projectFolder;
     private bool _runCommandBusy;
+    private bool _suppressDetailEvents;
+    private string? _lastSnipHash;
 
     public MainWindow()
     {
         InitializeComponent();
-        _projectFolder = TryResolveProjectFolder();
-        ProjectPathText.Text = "Project: " + _projectFolder;
+        StepsList.ItemsSource = _stepItems;
 
         _inspector = new UiaInspectorService(snap =>
         {
@@ -35,7 +45,533 @@ public partial class MainWindow : Window
             _inspector.Dispose();
             await _session.DisposeAsync();
         };
+
+        TryLoadStartupProject();
         UpdateCommandButtons();
+        UpdateDetailEnabledState();
+    }
+
+    private void TryLoadStartupProject()
+    {
+        try
+        {
+            var folder = RepoPaths.ResolveDefaultProjectFolder();
+            if (Directory.Exists(folder) && File.Exists(ProjectPaths.ProjectFile(folder)))
+            {
+                LoadProjectFromFolder(folder);
+                return;
+            }
+
+            _projectFolder = folder;
+            _document = CreateBlankDocument();
+            RefreshStepList();
+            UpdateProjectPathText();
+            AppendLog("No project.json at default path — started blank. Use Open or Save.");
+        }
+        catch (Exception ex)
+        {
+            _projectFolder = null;
+            _document = CreateBlankDocument();
+            RefreshStepList();
+            UpdateProjectPathText();
+            AppendLog("Startup load skipped: " + ex.Message);
+        }
+    }
+
+    private void LoadProjectFromFolder(string folder)
+    {
+        _document = _store.Load(folder);
+        _projectFolder = Path.GetFullPath(folder);
+        RefreshStepList();
+        UpdateProjectPathText();
+        AppendLog($"Loaded {_document.Steps.Count} step(s) from {_projectFolder}");
+    }
+
+    private void OnOpenClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Open PixelFlow project folder (.pflow)",
+        };
+        if (_projectFolder is not null && Directory.Exists(_projectFolder))
+        {
+            dialog.InitialDirectory = _projectFolder;
+        }
+
+        if (dialog.ShowDialog(this) != true || string.IsNullOrWhiteSpace(dialog.FolderName))
+        {
+            return;
+        }
+
+        try
+        {
+            CommitSelectedStepDetails();
+            LoadProjectFromFolder(dialog.FolderName);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Open failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppendLog("Open ERROR: " + ex.Message);
+        }
+    }
+
+    private void OnSaveClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!EnsureProjectFolderForSave())
+            {
+                return;
+            }
+
+            CommitSelectedStepDetails();
+            _store.Save(_projectFolder!, _document);
+            AppendLog("Saved " + _projectFolder);
+            UpdateProjectPathText();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Save failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            AppendLog("Save ERROR: " + ex.Message);
+        }
+    }
+
+    private void OnNewClick(object sender, RoutedEventArgs e)
+    {
+        CommitSelectedStepDetails();
+        _document = CreateBlankDocument();
+        _projectFolder = null;
+        _lastSnipHash = null;
+        LastSnipBox.Text = "No snip yet.";
+        RefreshStepList();
+        UpdateProjectPathText();
+        AppendLog("New blank project (Save to choose a folder).");
+    }
+
+    private void OnSnipClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!EnsureProjectFolderForSave())
+            {
+                AppendLog("Snip cancelled — project folder required to store assets.");
+                return;
+            }
+
+            // Persist project.json so assets/ exists beside a real project.
+            CommitSelectedStepDetails();
+            _store.Save(_projectFolder!, _document);
+
+            WindowState = WindowState.Minimized;
+            try
+            {
+                var png = SnipOverlayWindow.CaptureRegionInteractive(owner: null);
+                if (png is null || png.Length == 0)
+                {
+                    AppendLog("Snip cancelled.");
+                    return;
+                }
+
+                var hash = _store.SavePngAsset(_projectFolder!, png);
+                _lastSnipHash = hash;
+                var path = ProjectPaths.AssetPath(_projectFolder!, hash);
+                LastSnipBox.Text = hash + Environment.NewLine + path;
+                AppendLog($"Snip saved: {hash} ({png.Length} bytes) → {path}");
+
+                ApplySnipHashToSelectedClick(hash);
+            }
+            finally
+            {
+                WindowState = WindowState.Normal;
+                Activate();
+            }
+        }
+        catch (Exception ex)
+        {
+            WindowState = WindowState.Normal;
+            AppendLog("Snip ERROR: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Snip failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ApplySnipHashToSelectedClick(string hash)
+    {
+        if (StepsList.SelectedItem is not StepListItem item)
+        {
+            return;
+        }
+
+        if (!string.Equals(item.Step.Type, "Click", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        item.Step.Locator ??= new LocatorChain();
+        var imageLayer = item.Step.Locator.Layers
+            .FirstOrDefault(l => string.Equals(l.Kind, "Image", StringComparison.OrdinalIgnoreCase));
+        if (imageLayer is null)
+        {
+            imageLayer = new LocatorLayer
+            {
+                Kind = "Image",
+                Enabled = true,
+                ConfidenceThreshold = 0.85,
+            };
+            item.Step.Locator.Layers.Add(imageLayer);
+        }
+
+        imageLayer.ImageAssetHash = hash;
+        StepImageHashBox.Text = hash;
+        item.NotifyDisplayChanged();
+    }
+
+    private bool EnsureProjectFolderForSave()
+    {
+        if (!string.IsNullOrWhiteSpace(_projectFolder))
+        {
+            return true;
+        }
+
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Choose folder to save this .pflow project",
+        };
+        if (dialog.ShowDialog(this) != true || string.IsNullOrWhiteSpace(dialog.FolderName))
+        {
+            return false;
+        }
+
+        _projectFolder = Path.GetFullPath(dialog.FolderName);
+        if (string.IsNullOrWhiteSpace(_document.Name))
+        {
+            _document.Name = Path.GetFileName(_projectFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        }
+
+        UpdateProjectPathText();
+        return true;
+    }
+
+    private void OnAddWaitClick(object sender, RoutedEventArgs e) =>
+        AddStep(new ScriptStep { Id = NextStepId("wait"), Type = "Wait", WaitMs = 500 });
+
+    private void OnAddClickClick(object sender, RoutedEventArgs e) =>
+        AddStep(new ScriptStep
+        {
+            Id = NextStepId("click"),
+            Type = "Click",
+            Locator = new LocatorChain
+            {
+                Scope = new ProcessWindowScope
+                {
+                    ProcessName = "PixelFlow.TestBench",
+                    WindowTitle = "Test Bench",
+                },
+                Layers =
+                [
+                    new LocatorLayer
+                    {
+                        Kind = "UiaStructural",
+                        Enabled = true,
+                        ConfidenceThreshold = 0.9,
+                        AutomationId = "TbSubmit",
+                        ControlType = "Button",
+                        Name = "Submit",
+                    },
+                ],
+            },
+        });
+
+    private void OnAddTypeClick(object sender, RoutedEventArgs e) =>
+        AddStep(new ScriptStep { Id = NextStepId("type"), Type = "Type", Text = "" });
+
+    private void AddStep(ScriptStep step)
+    {
+        CommitSelectedStepDetails();
+        _document.Steps.Add(step);
+        var item = new StepListItem(step);
+        _stepItems.Add(item);
+        StepsList.SelectedItem = item;
+        StepsList.ScrollIntoView(item);
+    }
+
+    private void OnRemoveStepClick(object sender, RoutedEventArgs e)
+    {
+        if (StepsList.SelectedItem is not StepListItem item)
+        {
+            return;
+        }
+
+        var index = _stepItems.IndexOf(item);
+        _document.Steps.Remove(item.Step);
+        _stepItems.RemoveAt(index);
+        if (_stepItems.Count > 0)
+        {
+            StepsList.SelectedIndex = Math.Min(index, _stepItems.Count - 1);
+        }
+        else
+        {
+            ClearDetailFields();
+        }
+    }
+
+    private void OnMoveUpClick(object sender, RoutedEventArgs e) => MoveSelected(-1);
+
+    private void OnMoveDownClick(object sender, RoutedEventArgs e) => MoveSelected(1);
+
+    private void MoveSelected(int delta)
+    {
+        if (StepsList.SelectedItem is not StepListItem item)
+        {
+            return;
+        }
+
+        CommitSelectedStepDetails();
+        var index = _stepItems.IndexOf(item);
+        var target = index + delta;
+        if (target < 0 || target >= _stepItems.Count)
+        {
+            return;
+        }
+
+        _document.Steps.RemoveAt(index);
+        _document.Steps.Insert(target, item.Step);
+        _stepItems.Move(index, target);
+        StepsList.SelectedItem = item;
+    }
+
+    private void OnStepsSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressDetailEvents)
+        {
+            return;
+        }
+
+        // Commit the previously selected step (still in RemovedItems) before loading the new one.
+        if (e.RemovedItems.Count > 0 && e.RemovedItems[0] is StepListItem previous)
+        {
+            ApplyDetailsToStep(previous.Step);
+            previous.NotifyDisplayChanged();
+        }
+
+        LoadSelectedStepDetails();
+        UpdateDetailEnabledState();
+    }
+
+    private void OnStepDetailChanged(object sender, RoutedEventArgs e)
+    {
+        if (_suppressDetailEvents)
+        {
+            return;
+        }
+
+        CommitSelectedStepDetails();
+    }
+
+    private void OnStepTypeChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressDetailEvents)
+        {
+            return;
+        }
+
+        CommitSelectedStepDetails();
+        UpdateDetailEnabledState();
+    }
+
+    private void CommitSelectedStepDetails()
+    {
+        if (StepsList.SelectedItem is not StepListItem item)
+        {
+            return;
+        }
+
+        ApplyDetailsToStep(item.Step);
+        item.NotifyDisplayChanged();
+    }
+
+    private void ApplyDetailsToStep(ScriptStep step)
+    {
+        step.Id = StepIdBox.Text?.Trim() ?? "";
+        step.Type = (StepTypeBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? step.Type;
+
+        if (int.TryParse(StepWaitMsBox.Text?.Trim(), out var waitMs))
+        {
+            step.WaitMs = waitMs;
+        }
+        else if (string.Equals(step.Type, "Wait", StringComparison.OrdinalIgnoreCase))
+        {
+            step.WaitMs ??= 500;
+        }
+
+        step.Text = string.IsNullOrWhiteSpace(StepTextBox.Text) ? null : StepTextBox.Text;
+
+        if (string.Equals(step.Type, "Click", StringComparison.OrdinalIgnoreCase))
+        {
+            step.Locator ??= new LocatorChain();
+            step.Locator.Scope ??= new ProcessWindowScope();
+            step.Locator.Scope.ProcessName = NullIfBlank(StepProcessBox.Text);
+            step.Locator.Scope.WindowTitle = NullIfBlank(StepWindowBox.Text);
+
+            var uia = step.Locator.Layers
+                .FirstOrDefault(l => string.Equals(l.Kind, "UiaStructural", StringComparison.OrdinalIgnoreCase));
+            if (uia is null)
+            {
+                uia = new LocatorLayer { Kind = "UiaStructural", Enabled = true, ConfidenceThreshold = 0.9 };
+                step.Locator.Layers.Insert(0, uia);
+            }
+
+            uia.AutomationId = NullIfBlank(StepAutomationIdBox.Text);
+            uia.ControlType = NullIfBlank(StepControlTypeBox.Text);
+            uia.Name = NullIfBlank(StepNameBox.Text);
+
+            var image = step.Locator.Layers
+                .FirstOrDefault(l => string.Equals(l.Kind, "Image", StringComparison.OrdinalIgnoreCase));
+            if (image is not null && !string.IsNullOrWhiteSpace(_lastSnipHash) &&
+                string.IsNullOrWhiteSpace(image.ImageAssetHash))
+            {
+                image.ImageAssetHash = _lastSnipHash;
+            }
+        }
+    }
+
+    private void LoadSelectedStepDetails()
+    {
+        _suppressDetailEvents = true;
+        try
+        {
+            if (StepsList.SelectedItem is not StepListItem item)
+            {
+                ClearDetailFields();
+                return;
+            }
+
+            var step = item.Step;
+            StepIdBox.Text = step.Id;
+            SelectStepType(step.Type);
+            StepWaitMsBox.Text = step.WaitMs?.ToString() ?? "";
+            StepTextBox.Text = step.Text ?? "";
+
+            var scope = step.Locator?.Scope;
+            StepProcessBox.Text = scope?.ProcessName ?? "";
+            StepWindowBox.Text = scope?.WindowTitle ?? "";
+
+            var uia = step.Locator?.Layers
+                .FirstOrDefault(l => string.Equals(l.Kind, "UiaStructural", StringComparison.OrdinalIgnoreCase));
+            StepAutomationIdBox.Text = uia?.AutomationId ?? "";
+            StepControlTypeBox.Text = uia?.ControlType ?? "";
+            StepNameBox.Text = uia?.Name ?? "";
+
+            var image = step.Locator?.Layers
+                .FirstOrDefault(l => string.Equals(l.Kind, "Image", StringComparison.OrdinalIgnoreCase));
+            StepImageHashBox.Text = image?.ImageAssetHash ?? "";
+        }
+        finally
+        {
+            _suppressDetailEvents = false;
+        }
+    }
+
+    private void ClearDetailFields()
+    {
+        _suppressDetailEvents = true;
+        try
+        {
+            StepIdBox.Text = "";
+            StepTypeBox.SelectedIndex = -1;
+            StepWaitMsBox.Text = "";
+            StepTextBox.Text = "";
+            StepProcessBox.Text = "";
+            StepWindowBox.Text = "";
+            StepAutomationIdBox.Text = "";
+            StepControlTypeBox.Text = "";
+            StepNameBox.Text = "";
+            StepImageHashBox.Text = "";
+        }
+        finally
+        {
+            _suppressDetailEvents = false;
+        }
+    }
+
+    private void SelectStepType(string type)
+    {
+        for (var i = 0; i < StepTypeBox.Items.Count; i++)
+        {
+            if (StepTypeBox.Items[i] is ComboBoxItem item &&
+                string.Equals(item.Content?.ToString(), type, StringComparison.OrdinalIgnoreCase))
+            {
+                StepTypeBox.SelectedIndex = i;
+                return;
+            }
+        }
+
+        StepTypeBox.SelectedIndex = 0;
+    }
+
+    private void UpdateDetailEnabledState()
+    {
+        var hasSelection = StepsList.SelectedItem is StepListItem;
+        var type = (StepTypeBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+        var isWait = string.Equals(type, "Wait", StringComparison.OrdinalIgnoreCase);
+        var isType = string.Equals(type, "Type", StringComparison.OrdinalIgnoreCase);
+        var isClick = string.Equals(type, "Click", StringComparison.OrdinalIgnoreCase);
+
+        StepIdBox.IsEnabled = hasSelection;
+        StepTypeBox.IsEnabled = hasSelection;
+        StepWaitMsBox.IsEnabled = hasSelection && isWait;
+        StepTextBox.IsEnabled = hasSelection && isType;
+        StepProcessBox.IsEnabled = hasSelection && isClick;
+        StepWindowBox.IsEnabled = hasSelection && isClick;
+        StepAutomationIdBox.IsEnabled = hasSelection && isClick;
+        StepControlTypeBox.IsEnabled = hasSelection && isClick;
+        StepNameBox.IsEnabled = hasSelection && isClick;
+    }
+
+    private void RefreshStepList()
+    {
+        _suppressDetailEvents = true;
+        try
+        {
+            _stepItems.Clear();
+            foreach (var step in _document.Steps)
+            {
+                _stepItems.Add(new StepListItem(step));
+            }
+
+            if (_stepItems.Count > 0)
+            {
+                StepsList.SelectedIndex = 0;
+            }
+            else
+            {
+                ClearDetailFields();
+            }
+        }
+        finally
+        {
+            _suppressDetailEvents = false;
+        }
+
+        LoadSelectedStepDetails();
+        UpdateDetailEnabledState();
+    }
+
+    private string NextStepId(string prefix)
+    {
+        var n = 1;
+        while (_document.Steps.Any(s => string.Equals(s.Id, $"{prefix}-{n}", StringComparison.OrdinalIgnoreCase)))
+        {
+            n++;
+        }
+
+        return $"{prefix}-{n}";
+    }
+
+    private void UpdateProjectPathText()
+    {
+        ProjectPathText.Text = _projectFolder is null
+            ? "Project: (unsaved — Save to choose a folder)"
+            : "Project: " + _projectFolder;
     }
 
     private void OnTestLocatorClick(object sender, RoutedEventArgs e)
@@ -81,23 +617,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private static string? NullIfBlank(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    private static string TryResolveProjectFolder()
-    {
-        try
-        {
-            return RepoPaths.ResolveDefaultProjectFolder();
-        }
-        catch (Exception ex)
-        {
-            return $"(unavailable: {ex.Message})";
-        }
-    }
-
     private void OnInspectorChecked(object sender, RoutedEventArgs e)
     {
         _inspector.Start();
@@ -114,10 +633,20 @@ public partial class MainWindow : Window
     {
         try
         {
+            CommitSelectedStepDetails();
+            if (!EnsureProjectFolderForSave())
+            {
+                AppendLog("Run cancelled — save a project folder first.");
+                return;
+            }
+
+            _store.Save(_projectFolder!, _document);
+            AppendLog("Saved before run: " + _projectFolder);
+
             _runCommandBusy = true;
             UpdateCommandButtons();
             AppendLog("Run requested…");
-            await _session.RunProjectAsync(_projectFolder);
+            await _session.RunProjectAsync(_projectFolder!);
             AppendLog("Playing project (Idle = success). Emergency stop: Ctrl+Shift+F12.");
         }
         catch (Exception ex)
@@ -191,5 +720,56 @@ public partial class MainWindow : Window
         PauseButton.IsEnabled = running && !paused;
         ResumeButton.IsEnabled = running && paused;
         StopButton.IsEnabled = running;
+        OpenButton.IsEnabled = !running;
+        SaveButton.IsEnabled = !running;
+        NewButton.IsEnabled = !running;
+        SnipButton.IsEnabled = !running;
+    }
+
+    private static ProjectDocument CreateBlankDocument() => new()
+    {
+        SchemaVersion = ProjectSchema.CurrentVersion,
+        Name = "untitled",
+        Steps = [],
+    };
+
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private sealed class StepListItem : INotifyPropertyChanged
+    {
+        public StepListItem(ScriptStep step) => Step = step;
+
+        public ScriptStep Step { get; }
+
+        public string Display => Format(Step);
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public void NotifyDisplayChanged() =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));
+
+        private static string Format(ScriptStep step)
+        {
+            return step.Type switch
+            {
+                "Wait" => $"{step.Id} | Wait | {step.WaitMs ?? 0}ms",
+                "Type" => $"{step.Id} | Type | {Truncate(step.Text)}",
+                "Click" => $"{step.Id} | Click | {step.Locator?.Layers.FirstOrDefault()?.AutomationId
+                    ?? step.Locator?.Layers.FirstOrDefault(l => l.ImageAssetHash is not null)?.ImageAssetHash
+                    ?? "(no target)"}",
+                _ => $"{step.Id} | {step.Type}",
+            };
+        }
+
+        private static string Truncate(string? text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return "(empty)";
+            }
+
+            return text.Length <= 24 ? text : text[..21] + "…";
+        }
     }
 }

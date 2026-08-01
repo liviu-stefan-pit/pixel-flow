@@ -30,6 +30,10 @@ Override: set `PIXELFLOW_PROJECT_FOLDER` to another `.pflow` folder (e.g. `emerg
 
 Optional: set `PIXELFLOW_RUNNER_PATH` to a Runner exe/dll if auto-discovery fails.
 
+**Script editor (P18):** Open / Save / New, ordered step list (Wait / Click / Type), add/remove/reorder, step details bound to `project.json` via `ProjectStore`. Run auto-saves first.
+
+**Snip (P19):** **Snip** opens a region overlay; PNG is stored as `assets/sha256-<hex>.png` (identical bytes reuse the same hash). Hash is shown under Last snip; if a Click step is selected, an Image layer is attached with that hash (inline tokens are P20).
+
 **Emergency stop:** `Ctrl+Shift+F12` (global, registered by the Runner). Works even when another window has focus.
 
 ## Run Runner (manual / help)
@@ -153,6 +157,20 @@ Resolve logs always include `layer=` and `confidence=`.
 4. Result shows OK; a green highlight flashes over the Submit button (no full script run).
 5. Change AutomationId to a wrong value (e.g. `TbMissing`); Test shows FAIL with a clear reason.
 
+### P18 — minimal script editor
+
+1. `dotnet run --project src/PixelFlow.Studio/PixelFlow.Studio.csproj`
+2. Use **+ Wait / + Click / + Type**, reorder with ↑↓, edit details, **Save**.
+3. **Open** the same folder again; steps match.
+4. With Test Bench running, **Run**; Wait+Click behavior matches the list (Type is editable/saved; Runner typing lands in a later phase).
+
+### P19 — screen snipping
+
+1. Open/Save a project folder in Studio.
+2. Click **Snip**, drag a region, release.
+3. Confirm `assets/sha256-....png` under the project folder; Last snip shows the hash.
+4. Snip the same pixels again (or identical bytes); hash is reused (single file).
+
 ## Run Test Bench
 
 ```powershell
@@ -173,11 +191,11 @@ dotnet test PixelFlow.slnx
 |---|---|
 | `src/PixelFlow.Core` | Shared project model, JSON, store, migrations, IPC schema, runner engine |
 | `src/PixelFlow.Runner` | Automation worker (named-pipe host, locator chain, verified click) |
-| `src/PixelFlow.Studio` | WPF editor shell (run/pause/stop IPC client, UIA inspector, test-locator) |
+| `src/PixelFlow.Studio` | WPF editor shell (list script editor, snip→assets, run/pause/stop IPC, UIA inspector, test-locator) |
 | `src/PixelFlow.TestBench` | Target app for locator/integration tests (WPF + Win32 + OCR + image) |
 | `tests/PixelFlow.Core.Tests` | Unit tests |
 | `fixtures/projects` | Sample `.pflow` project bundles |
 
 ## Status
 
-Phases **P00–P17** implemented (through author-time test-locator with highlight overlay). See [docs/phases.md](docs/phases.md).
+Phases **P00–P19** implemented (list script editor + screen snip into hashed assets). See [docs/phases.md](docs/phases.md).

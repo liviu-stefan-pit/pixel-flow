@@ -1,29 +1,39 @@
 ﻿<Window x:Class="PixelFlow.Studio.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="PixelFlow"
-        Height="720"
-        Width="960"
-        MinHeight="520"
-        MinWidth="780">
-    <DockPanel Margin="16">
+        Title="PixelFlow Studio"
+        Height="780"
+        Width="1100"
+        MinHeight="560"
+        MinWidth="900">
+    <DockPanel Margin="12">
         <TextBlock DockPanel.Dock="Top"
                    Text="PixelFlow Studio"
-                   FontSize="22"
+                   FontSize="20"
                    FontWeight="SemiBold"
                    Margin="0,0,0,4" />
 
         <TextBlock DockPanel.Dock="Top"
                    TextWrapping="Wrap"
                    Opacity="0.85"
-                   Margin="0,0,0,12"
-                   Text="Default project: click-submit (needs Test Bench). Override with PIXELFLOW_PROJECT_FOLDER. Pause holds BETWEEN steps only. Emergency stop: Ctrl+Shift+F12 (global, Runner). Use Test locator to validate AutomationId against the live desktop before running a script." />
+                   FontSize="12"
+                   Margin="0,0,0,8"
+                   Text="Edit steps in the list, Save through ProjectStore, then Run. Snip stores hashed PNGs under assets/. Emergency stop: Ctrl+Shift+F12." />
 
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-            <Button x:Name="RunButton" Content="Run" Width="88" Margin="0,0,8,0" Click="OnRunClick" />
-            <Button x:Name="PauseButton" Content="Pause" Width="88" Margin="0,0,8,0" Click="OnPauseClick" IsEnabled="False" />
-            <Button x:Name="ResumeButton" Content="Resume" Width="88" Margin="0,0,8,0" Click="OnResumeClick" IsEnabled="False" />
-            <Button x:Name="StopButton" Content="Stop" Width="88" Margin="0,0,16,0" Click="OnStopClick" IsEnabled="False" />
+            <Button x:Name="OpenButton" Content="Open…" Width="72" Margin="0,0,6,0" Click="OnOpenClick"
+                    AutomationProperties.AutomationId="StudioOpen" />
+            <Button x:Name="SaveButton" Content="Save" Width="64" Margin="0,0,6,0" Click="OnSaveClick"
+                    AutomationProperties.AutomationId="StudioSave" />
+            <Button x:Name="NewButton" Content="New" Width="56" Margin="0,0,12,0" Click="OnNewClick"
+                    AutomationProperties.AutomationId="StudioNew" />
+            <Button x:Name="SnipButton" Content="Snip" Width="64" Margin="0,0,12,0" Click="OnSnipClick"
+                    AutomationProperties.AutomationId="StudioSnip" ToolTip="Capture a screen region into project assets/" />
+            <Button x:Name="RunButton" Content="Run" Width="72" Margin="0,0,6,0" Click="OnRunClick"
+                    AutomationProperties.AutomationId="StudioRun" />
+            <Button x:Name="PauseButton" Content="Pause" Width="72" Margin="0,0,6,0" Click="OnPauseClick" IsEnabled="False" />
+            <Button x:Name="ResumeButton" Content="Resume" Width="72" Margin="0,0,6,0" Click="OnResumeClick" IsEnabled="False" />
+            <Button x:Name="StopButton" Content="Stop" Width="72" Margin="0,0,12,0" Click="OnStopClick" IsEnabled="False" />
             <CheckBox x:Name="InspectorToggle"
                       Content="UIA Inspector"
                       VerticalAlignment="Center"
@@ -35,7 +45,7 @@
                    DockPanel.Dock="Top"
                    Text="Runner: Disconnected — click Run"
                    TextWrapping="Wrap"
-                   Margin="0,0,0,4" />
+                   Margin="0,0,0,2" />
 
         <TextBlock x:Name="ProjectPathText"
                    DockPanel.Dock="Top"
@@ -46,12 +56,107 @@
 
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="280" />
+                <ColumnDefinition Width="360" MinWidth="280" />
                 <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="340" MinWidth="260" />
+                <ColumnDefinition Width="*" MinWidth="220" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="300" MinWidth="240" />
             </Grid.ColumnDefinitions>
 
+            <!-- Script editor -->
             <DockPanel Grid.Column="0">
+                <TextBlock DockPanel.Dock="Top" Text="Script steps" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
+                    <Button Content="+ Wait" Width="60" Margin="0,0,4,0" Click="OnAddWaitClick"
+                            AutomationProperties.AutomationId="StudioAddWait" />
+                    <Button Content="+ Click" Width="60" Margin="0,0,4,0" Click="OnAddClickClick"
+                            AutomationProperties.AutomationId="StudioAddClick" />
+                    <Button Content="+ Type" Width="60" Margin="0,0,8,0" Click="OnAddTypeClick"
+                            AutomationProperties.AutomationId="StudioAddType" />
+                    <Button Content="↑" Width="28" Margin="0,0,4,0" Click="OnMoveUpClick" ToolTip="Move up" />
+                    <Button Content="↓" Width="28" Margin="0,0,4,0" Click="OnMoveDownClick" ToolTip="Move down" />
+                    <Button Content="Remove" Width="64" Click="OnRemoveStepClick"
+                            AutomationProperties.AutomationId="StudioRemoveStep" />
+                </StackPanel>
+
+                <GroupBox Header="Step details" DockPanel.Dock="Bottom" Margin="0,8,0,0" Padding="6">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="280">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="88" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Id" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepIdBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepId" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Type" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <ComboBox x:Name="StepTypeBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,4"
+                                      SelectionChanged="OnStepTypeChanged" AutomationProperties.AutomationId="StudioStepType">
+                                <ComboBoxItem Content="Wait" />
+                                <ComboBoxItem Content="Click" />
+                                <ComboBoxItem Content="Type" />
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="WaitMs" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepWaitMsBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepWaitMs" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Text" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepText" />
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Process" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepProcessBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged" />
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Window" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepWindowBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged" />
+
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="AutomationId" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepAutomationIdBox" Grid.Row="6" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged" />
+
+                            <TextBlock Grid.Row="7" Grid.Column="0" Text="ControlType" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepControlTypeBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged" />
+
+                            <TextBlock Grid.Row="8" Grid.Column="0" Text="Name" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepNameBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged" />
+
+                            <TextBlock Grid.Row="9" Grid.Column="0" Text="Image hash" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepImageHashBox" Grid.Row="9" Grid.Column="1" Margin="0,0,0,4"
+                                     IsReadOnly="True" Opacity="0.85"
+                                     ToolTip="Set by Snip when an Image layer is present (P20 will insert inline tokens)." />
+                        </Grid>
+                    </ScrollViewer>
+                </GroupBox>
+
+                <ListBox x:Name="StepsList"
+                         DisplayMemberPath="Display"
+                         SelectionChanged="OnStepsSelectionChanged"
+                         AutomationProperties.AutomationId="StudioStepsList" />
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" />
+
+            <!-- Log -->
+            <DockPanel Grid.Column="2">
                 <TextBlock DockPanel.Dock="Top" Text="Log" FontWeight="SemiBold" Margin="0,0,0,4" />
                 <TextBox x:Name="LogBox"
                          IsReadOnly="True"
@@ -60,23 +165,25 @@
                          FontFamily="Consolas"
                          FontSize="12"
                          AcceptsReturn="True"
-                         TextWrapping="NoWrap" />
+                         TextWrapping="NoWrap"
+                         AutomationProperties.AutomationId="StudioLog" />
             </DockPanel>
 
-            <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" />
+            <GridSplitter Grid.Column="3" Width="8" HorizontalAlignment="Stretch" />
 
-            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+            <!-- Locator tools -->
+            <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                     <TextBlock Text="Test locator" FontWeight="SemiBold" Margin="0,0,0,4" />
                     <TextBlock TextWrapping="Wrap"
                                Opacity="0.75"
                                FontSize="11"
                                Margin="0,0,0,8"
-                               Text="Enter UIA structural fields and click Test. Success flashes a green highlight on the match; failure shows why." />
+                               Text="Validate AutomationId against the live desktop before running." />
 
                     <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="90" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
@@ -129,23 +236,34 @@
                              IsReadOnly="True"
                              TextWrapping="Wrap"
                              AcceptsReturn="True"
-                             MinHeight="56"
-                             MaxHeight="120"
+                             MinHeight="48"
+                             MaxHeight="100"
                              VerticalScrollBarVisibility="Auto"
                              FontFamily="Consolas"
                              FontSize="12"
                              Margin="0,0,0,16"
                              Text="Result appears here after Test." />
 
+                    <TextBlock Text="Last snip" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBox x:Name="LastSnipBox"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             FontFamily="Consolas"
+                             FontSize="11"
+                             MinHeight="40"
+                             Margin="0,0,0,16"
+                             Text="No snip yet."
+                             AutomationProperties.AutomationId="StudioLastSnip" />
+
                     <TextBlock Text="UIA Inspector" FontWeight="SemiBold" Margin="0,0,0,4" />
                     <TextBlock TextWrapping="Wrap"
                                Opacity="0.75"
                                FontSize="11"
                                Margin="0,0,0,6"
-                               Text="Check UIA Inspector above, then hover any desktop element (e.g. Test Bench Submit). Copy fields into the Test locator form." />
+                               Text="Enable UIA Inspector, hover an element, copy fields into step details or Test locator." />
                     <TextBox x:Name="InspectorBox"
                              IsReadOnly="True"
-                             MinHeight="180"
+                             MinHeight="140"
                              VerticalScrollBarVisibility="Auto"
                              HorizontalScrollBarVisibility="Auto"
                              FontFamily="Consolas"

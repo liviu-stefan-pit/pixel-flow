@@ -1,0 +1,33 @@
+<Window x:Class="PixelFlow.Studio.SnipOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="#66000000"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Cursor="Cross"
+        Title="PixelFlow Snip"
+        KeyDown="OnKeyDown"
+        MouseLeftButtonDown="OnMouseLeftButtonDown"
+        MouseMove="OnMouseMove"
+        MouseLeftButtonUp="OnMouseLeftButtonUp">
+    <Grid>
+        <TextBlock Text="Drag to select a region — Esc to cancel"
+                   Foreground="White"
+                   FontSize="14"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Top"
+                   Margin="0,24,0,0"
+                   IsHitTestVisible="False" />
+        <Canvas x:Name="RootCanvas" Background="Transparent">
+            <Border x:Name="SelectionBorder"
+                    BorderBrush="#FF00C850"
+                    BorderThickness="2"
+                    Background="#2200C850"
+                    Visibility="Collapsed"
+                    IsHitTestVisible="False" />
+        </Canvas>
+    </Grid>
+</Window>

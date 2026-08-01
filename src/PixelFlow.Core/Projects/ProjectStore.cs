@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 
 namespace PixelFlow.Core.Projects;
@@ -68,7 +69,7 @@ public sealed class ProjectStore
     }
 
     /// <summary>
-    /// Ensures the assets folder exists. Asset bytes are stored by content hash in later phases.
+    /// Ensures the assets folder exists.
     /// </summary>
     public string EnsureAssetsFolder(string projectFolder)
     {
@@ -76,6 +77,36 @@ public sealed class ProjectStore
         var assets = ProjectPaths.AssetsFolder(projectFolder);
         Directory.CreateDirectory(assets);
         return assets;
+    }
+
+    /// <summary>
+    /// Writes PNG bytes under <c>assets/sha256-&lt;hex&gt;.png</c>. Identical content reuses the
+    /// existing file (no duplicate bytes). Returns the content-hash id (e.g. <c>sha256-abc...</c>).
+    /// </summary>
+    public string SavePngAsset(string projectFolder, byte[] pngBytes)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(projectFolder);
+        ArgumentNullException.ThrowIfNull(pngBytes);
+        if (pngBytes.Length == 0)
+        {
+            throw new ArgumentException("PNG bytes must not be empty.", nameof(pngBytes));
+        }
+
+        EnsureAssetsFolder(projectFolder);
+
+        var hashHex = Convert.ToHexString(SHA256.HashData(pngBytes)).ToLowerInvariant();
+        var contentHash = "sha256-" + hashHex;
+        var path = ProjectPaths.AssetPath(projectFolder, contentHash, ".png");
+
+        if (!File.Exists(path))
+        {
+            // Write via temp + replace so a crash mid-write cannot leave a truncated asset.
+            var tempPath = path + ".tmp";
+            File.WriteAllBytes(tempPath, pngBytes);
+            File.Move(tempPath, path, overwrite: false);
+        }
+
+        return contentHash;
     }
 
     private void WriteHistoryBackup(string projectFolder, string projectFile)

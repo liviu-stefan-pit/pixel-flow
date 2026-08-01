@@ -23,7 +23,7 @@ public static class ProjectPaths
         Path.Combine(projectFolder, HistoryFolderName);
 
     /// <summary>
-    /// Content-hash asset file name convention (stub for later asset pipeline).
+    /// Content-hash asset file name convention.
     /// Example: <c>sha256-abc....png</c>
     /// </summary>
     public static string AssetFileName(string contentHash, string extension = ".png")

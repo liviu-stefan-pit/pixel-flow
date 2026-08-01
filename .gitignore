@@ -57,3 +57,6 @@ secrets.json
 
 ## Cursor local plans
 .cursor/plans/
+
+## Local run reports generated under fixture projects
+fixtures/**/reports/

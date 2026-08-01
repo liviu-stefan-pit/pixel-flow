@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using System.Text.Json.Nodes;
+using PixelFlow.Core.Diagnostics;
 using PixelFlow.Core.Ipc;
 using PixelFlow.Core.Projects;
 using PixelFlow.Core.Runner;
@@ -14,12 +15,14 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
 {
     private readonly string _pipeName;
     private readonly ProjectStore _store = new();
+    private readonly RunReportStore _reportStore = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly EmergencyStopHotkey _emergencyStop;
     private RunnerEngine? _engine;
     private Task? _runTask;
     private IpcPipeConnection? _connection;
     private NamedPipeServerStream? _pipe;
+    private IRunReporter? _activeReporter;
 
     public RunnerIpcHost(string pipeName)
     {
@@ -199,8 +202,19 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
         Console.WriteLine($"[runner] Run starting: {project.Name} ({project.Steps.Count} steps) from {projectFolder}");
         await SendLogAsync("info", $"Run starting: {project.Name}").ConfigureAwait(false);
 
+        _activeReporter?.Dispose();
+        var reporter = _reportStore.BeginRun(projectFolder);
+        _activeReporter = reporter;
+        Console.WriteLine($"[runner] Writing run report: {reporter.ReportDirectory}");
+        await SendLogAsync("info", $"Run report: {reporter.ReportDirectory}").ConfigureAwait(false);
+
         var live = new LiveStepServices(projectFolder);
-        _engine = new RunnerEngine(live, live, live);
+        _engine = new RunnerEngine(
+            live,
+            live,
+            live,
+            reporter: reporter,
+            screenshotCapture: new PrimaryScreenFailureCapture());
         _engine.RequestResume();
         _engine.StateChanged += OnEngineStateChanged;
 
@@ -223,6 +237,14 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
                     Console.WriteLine($"[runner] Run ended in state {engine.State}");
                     await SendLogAsync("info", $"Run ended: {engine.State}").ConfigureAwait(false);
                 }
+
+                await SendLogAsync("info", "Last report summary ready — use Studio Last report.")
+                    .ConfigureAwait(false);
+                foreach (var line in RunReportStore.FormatSummary(reporter.ReportDirectory)
+                             .Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    await SendLogAsync("info", line).ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {
@@ -232,6 +254,12 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
             finally
             {
                 engine.StateChanged -= OnEngineStateChanged;
+                reporter.Dispose();
+                if (ReferenceEquals(_activeReporter, reporter))
+                {
+                    _activeReporter = null;
+                }
+
                 await SendStatusAsync(connected: true, engine.State).ConfigureAwait(false);
             }
         });
@@ -328,6 +356,9 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
                 // best-effort
             }
         }
+
+        _activeReporter?.Dispose();
+        _activeReporter = null;
 
         if (_connection is not null)
         {

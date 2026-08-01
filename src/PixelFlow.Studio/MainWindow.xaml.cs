@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using PixelFlow.Core.Diagnostics;
 using PixelFlow.Core.Projects;
 
 namespace PixelFlow.Studio;
@@ -449,6 +450,9 @@ public partial class MainWindow : Window
 
         step.Text = string.IsNullOrWhiteSpace(StepTextBox.Text) ? null : StepTextBox.Text;
 
+        // Opt-in failure screenshot: checked => true; unchecked => clear override (inherit project default = off).
+        step.CaptureFailureScreenshot = StepCaptureFailureScreenshotBox.IsChecked == true ? true : null;
+
         if (string.Equals(step.Type, "Click", StringComparison.OrdinalIgnoreCase))
         {
             step.Locator ??= new LocatorChain();
@@ -511,6 +515,7 @@ public partial class MainWindow : Window
             SelectStepType(step.Type);
             StepWaitMsBox.Text = step.WaitMs?.ToString() ?? "";
             StepTextBox.Text = step.Text ?? "";
+            StepCaptureFailureScreenshotBox.IsChecked = step.CaptureFailureScreenshot == true;
 
             var scope = step.Locator?.Scope;
             StepProcessBox.Text = scope?.ProcessName ?? "";
@@ -546,6 +551,7 @@ public partial class MainWindow : Window
             StepAutomationIdBox.Text = "";
             StepControlTypeBox.Text = "";
             StepNameBox.Text = "";
+            StepCaptureFailureScreenshotBox.IsChecked = false;
             RefreshImageTokenUi(null);
         }
         finally
@@ -588,6 +594,7 @@ public partial class MainWindow : Window
         StepNameBox.IsEnabled = hasSelection && isClick;
         StepImageTokenBorder.IsEnabled = hasSelection && isClick;
         ClearImageTokenButton.IsEnabled = hasSelection && isClick && !string.IsNullOrWhiteSpace(StepImageHashBox.Text);
+        StepCaptureFailureScreenshotBox.IsEnabled = hasSelection;
     }
 
     private void RefreshStepList()
@@ -765,6 +772,39 @@ public partial class MainWindow : Window
         {
             AppendLog("ERROR: " + ex.Message);
             UpdateCommandButtons();
+        }
+    }
+
+    private void OnLastReportClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_projectFolder))
+            {
+                AppendLog("No project folder — open or save a project first.");
+                return;
+            }
+
+            var latest = RunReportStore.FindLatestReportDirectory(_projectFolder);
+            if (latest is null)
+            {
+                AppendLog("No run reports yet under " + ProjectPaths.ReportsFolder(_projectFolder));
+                return;
+            }
+
+            var summary = RunReportStore.FormatSummary(latest);
+            AppendLog("--- Last report ---");
+            foreach (var line in summary.Split('\n'))
+            {
+                AppendLog(line);
+            }
+
+            AppendLog("--- end report ---");
+        }
+        catch (Exception ex)
+        {
+            AppendLog("Last report ERROR: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Last report failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "name": "failure-screenshot-on",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 200,
+    "retry": {
+      "maxAttempts": 1,
+      "backoffMs": 0
+    },
+    "captureFailureScreenshots": false
+  },
+  "steps": [
+    {
+      "id": "click-missing",
+      "type": "Click",
+      "timeoutMs": 200,
+      "retry": {
+        "maxAttempts": 1,
+        "backoffMs": 0
+      },
+      "captureFailureScreenshot": true,
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbDoesNotExist",
+            "controlType": "Button",
+            "name": "Missing"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,9 +1,11 @@
+using PixelFlow.Core.Diagnostics;
 using PixelFlow.Core.Projects;
 
 namespace PixelFlow.Core.Runner;
 
 /// <summary>
 /// Section 7 state machine. Resolves/executes via injected collaborators (mocked in P04).
+/// Optional <see cref="IRunReporter"/> writes JSONL diagnostics (P21/P22).
 /// </summary>
 public sealed class RunnerEngine
 {
@@ -11,6 +13,8 @@ public sealed class RunnerEngine
     private readonly IStepVerifier _verifier;
     private readonly IStepExecutor _executor;
     private readonly IRunnerDelay _delay;
+    private readonly IRunReporter? _reporter;
+    private readonly IFailureScreenshotCapture? _screenshotCapture;
     private readonly List<RunnerState> _transitions = [];
     private readonly object _gate = new();
     private volatile bool _abortRequested;
@@ -22,12 +26,16 @@ public sealed class RunnerEngine
         ITargetResolver resolver,
         IStepVerifier verifier,
         IStepExecutor executor,
-        IRunnerDelay? delay = null)
+        IRunnerDelay? delay = null,
+        IRunReporter? reporter = null,
+        IFailureScreenshotCapture? screenshotCapture = null)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _verifier = verifier ?? throw new ArgumentNullException(nameof(verifier));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _delay = delay ?? new SystemRunnerDelay();
+        _reporter = reporter;
+        _screenshotCapture = screenshotCapture;
         _transitions.Add(RunnerState.Idle);
     }
 
@@ -88,11 +96,18 @@ public sealed class RunnerEngine
         {
             var ct = linked.Token;
 
+            Report(new RunReportEvent
+            {
+                Event = RunReportEventNames.RunStarted,
+                ProjectName = project.Name,
+            });
+
             foreach (var step in project.Steps)
             {
                 if (_abortRequested || ct.IsCancellationRequested)
                 {
                     TransitionTo(RunnerState.Aborted);
+                    ReportRunFinished(RunReportOutcomes.Aborted);
                     return;
                 }
 
@@ -100,12 +115,14 @@ public sealed class RunnerEngine
                 if (_abortRequested || ct.IsCancellationRequested)
                 {
                     TransitionTo(RunnerState.Aborted);
+                    ReportRunFinished(RunReportOutcomes.Aborted);
                     return;
                 }
 
                 var outcome = await RunStepAsync(step, project.Defaults, linked).ConfigureAwait(false);
                 if (outcome == StepOutcome.Aborted)
                 {
+                    ReportRunFinished(RunReportOutcomes.Aborted);
                     return;
                 }
 
@@ -113,11 +130,13 @@ public sealed class RunnerEngine
                 {
                     // P04: no recovery configuration yet -> Aborted after FailedStep.
                     TransitionTo(RunnerState.Aborted);
+                    ReportRunFinished(RunReportOutcomes.Failed);
                     return;
                 }
             }
 
             TransitionTo(RunnerState.Idle);
+            ReportRunFinished(RunReportOutcomes.Succeeded);
         }
         finally
         {
@@ -170,6 +189,16 @@ public sealed class RunnerEngine
             timeoutMs = 0;
         }
 
+        Report(new RunReportEvent
+        {
+            Event = RunReportEventNames.StepStarted,
+            StepId = step.Id,
+            StepType = step.Type,
+        });
+
+        string? lastLayer = null;
+        double? lastConfidence = null;
+        string? lastFailureReason = null;
         var attempt = 0;
         while (true)
         {
@@ -179,6 +208,7 @@ public sealed class RunnerEngine
             if (ShouldAbort(linked))
             {
                 TransitionTo(RunnerState.Aborted);
+                ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                 return StepOutcome.Aborted;
             }
 
@@ -190,12 +220,37 @@ public sealed class RunnerEngine
             catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
             {
                 TransitionTo(RunnerState.Aborted);
+                ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                 return StepOutcome.Aborted;
+            }
+
+            Report(new RunReportEvent
+            {
+                Event = RunReportEventNames.ResolveAttempt,
+                StepId = step.Id,
+                StepType = step.Type,
+                Attempt = attempt,
+                Found = candidate.Found,
+                MatchedLayer = candidate.MatchedLayer,
+                Confidence = candidate.Found ? candidate.Confidence : null,
+                FailureReason = candidate.Found ? null : candidate.FailureReason,
+            });
+
+            if (candidate.Found)
+            {
+                lastLayer = candidate.MatchedLayer;
+                lastConfidence = candidate.Confidence;
+                lastFailureReason = null;
+            }
+            else
+            {
+                lastFailureReason = candidate.FailureReason;
             }
 
             if (ShouldAbort(linked))
             {
                 TransitionTo(RunnerState.Aborted);
+                ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                 return StepOutcome.Aborted;
             }
 
@@ -204,6 +259,14 @@ public sealed class RunnerEngine
                 if (attempt >= maxAttempts)
                 {
                     TransitionTo(RunnerState.FailedStep);
+                    ReportStepFinished(
+                        step,
+                        RunReportOutcomes.Failed,
+                        attempt,
+                        lastLayer,
+                        lastConfidence,
+                        lastFailureReason ?? "Resolve budget exhausted",
+                        defaults);
                     return StepOutcome.Failed;
                 }
 
@@ -215,6 +278,7 @@ public sealed class RunnerEngine
                 catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
                 {
                     TransitionTo(RunnerState.Aborted);
+                    ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                     return StepOutcome.Aborted;
                 }
 
@@ -230,14 +294,24 @@ public sealed class RunnerEngine
             catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
             {
                 TransitionTo(RunnerState.Aborted);
+                ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                 return StepOutcome.Aborted;
             }
 
             if (!preOk)
             {
+                lastFailureReason = "Pre-execute verification failed";
                 if (attempt >= maxAttempts)
                 {
                     TransitionTo(RunnerState.FailedStep);
+                    ReportStepFinished(
+                        step,
+                        RunReportOutcomes.Failed,
+                        attempt,
+                        lastLayer,
+                        lastConfidence,
+                        lastFailureReason,
+                        defaults);
                     return StepOutcome.Failed;
                 }
 
@@ -249,6 +323,7 @@ public sealed class RunnerEngine
                 catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
                 {
                     TransitionTo(RunnerState.Aborted);
+                    ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                     return StepOutcome.Aborted;
                 }
 
@@ -259,6 +334,7 @@ public sealed class RunnerEngine
             if (ShouldAbort(linked))
             {
                 TransitionTo(RunnerState.Aborted);
+                ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                 return StepOutcome.Aborted;
             }
 
@@ -269,12 +345,14 @@ public sealed class RunnerEngine
             catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
             {
                 TransitionTo(RunnerState.Aborted);
+                ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                 return StepOutcome.Aborted;
             }
 
             if (ShouldAbort(linked))
             {
                 TransitionTo(RunnerState.Aborted);
+                ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                 return StepOutcome.Aborted;
             }
 
@@ -287,16 +365,26 @@ public sealed class RunnerEngine
             catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
             {
                 TransitionTo(RunnerState.Aborted);
+                ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
                 return StepOutcome.Aborted;
             }
 
             if (!postOk)
             {
                 TransitionTo(RunnerState.FailedStep);
+                ReportStepFinished(
+                    step,
+                    RunReportOutcomes.Failed,
+                    attempt,
+                    lastLayer,
+                    lastConfidence,
+                    "Post-execute verification failed",
+                    defaults);
                 return StepOutcome.Failed;
             }
 
             TransitionTo(RunnerState.Idle);
+            ReportStepFinished(step, RunReportOutcomes.Succeeded, attempt, lastLayer, lastConfidence, null);
             return StepOutcome.Succeeded;
         }
     }
@@ -377,6 +465,97 @@ public sealed class RunnerEngine
         }
 
         handlers?.Invoke(next);
+    }
+
+    private void Report(RunReportEvent evt)
+    {
+        try
+        {
+            _reporter?.Write(evt);
+        }
+        catch (Exception ex)
+        {
+            // Diagnostics must not crash the run.
+            System.Diagnostics.Debug.WriteLine($"[runner] report write failed: {ex.Message}");
+        }
+    }
+
+    private void ReportStepFinished(
+        ScriptStep step,
+        string outcome,
+        int attempts,
+        string? matchedLayer,
+        double? confidence,
+        string? failureReason,
+        ProjectDefaults? defaults = null)
+    {
+        string? screenshot = null;
+        if (outcome == RunReportOutcomes.Failed
+            && defaults is not null
+            && ShouldCaptureFailureScreenshot(step, defaults))
+        {
+            screenshot = TryCaptureFailureScreenshot(step.Id);
+        }
+
+        Report(new RunReportEvent
+        {
+            Event = RunReportEventNames.StepFinished,
+            StepId = step.Id,
+            StepType = step.Type,
+            Outcome = outcome,
+            Attempts = attempts,
+            MatchedLayer = matchedLayer,
+            Confidence = confidence,
+            FailureReason = failureReason,
+            Screenshot = screenshot,
+        });
+    }
+
+    private void ReportRunFinished(string outcome)
+    {
+        Report(new RunReportEvent
+        {
+            Event = RunReportEventNames.RunFinished,
+            FinalState = State.ToString(),
+            Outcome = outcome,
+        });
+    }
+
+    private string? TryCaptureFailureScreenshot(string stepId)
+    {
+        if (_reporter is null || _screenshotCapture is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var png = _screenshotCapture.CapturePng();
+            if (png is null || png.Length == 0)
+            {
+                return null;
+            }
+
+            return _reporter.SaveFailureScreenshot(stepId, png);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[runner] failure screenshot failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Effective opt-in: per-step override wins; otherwise project default (false).
+    /// </summary>
+    public static bool ShouldCaptureFailureScreenshot(ScriptStep step, ProjectDefaults defaults)
+    {
+        if (step.CaptureFailureScreenshot.HasValue)
+        {
+            return step.CaptureFailureScreenshot.Value;
+        }
+
+        return defaults.CaptureFailureScreenshots;
     }
 
     private enum StepOutcome

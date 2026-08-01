@@ -1,4 +1,5 @@
-﻿using PixelFlow.Core.Projects;
+﻿using PixelFlow.Core.Diagnostics;
+using PixelFlow.Core.Projects;
 using PixelFlow.Core.Runner;
 using PixelFlow.Runner.Automation;
 
@@ -111,8 +112,17 @@ internal static class Program
         var project = store.Load(projectFolder);
         Console.WriteLine($"[runner] Loaded project '{project.Name}' ({project.Steps.Count} steps) from {projectFolder}");
 
+        var reportStore = new RunReportStore();
+        using var reporter = reportStore.BeginRun(projectFolder);
+        Console.WriteLine($"[runner] Writing run report: {reporter.ReportDirectory}");
+
         var services = new LiveStepServices(projectFolder);
-        var engine = new RunnerEngine(services, services, services);
+        var engine = new RunnerEngine(
+            services,
+            services,
+            services,
+            reporter: reporter,
+            screenshotCapture: new PrimaryScreenFailureCapture());
         engine.StateChanged += state =>
         {
             Console.WriteLine($"[runner] State -> {state}");
@@ -131,6 +141,8 @@ internal static class Program
         await engine.RunAsync(project).ConfigureAwait(false);
 
         Console.WriteLine($"[runner] Finished in state {engine.State}");
+        Console.WriteLine(
+            $"[runner] Report summary:{Environment.NewLine}{RunReportStore.FormatSummary(reporter.ReportDirectory)}");
         return engine.State == RunnerState.Idle ? 0 : 3;
     }
 
@@ -175,6 +187,8 @@ internal static class Program
 
             Studio starts this process with --pipe for run/pause/resume/stop.
             Emergency stop (global): Ctrl+Shift+F12 — aborts the active run even if another window has focus.
+            Each run writes reports/run-*/events.jsonl (P21). Opt-in failure screenshots (P22) when
+            defaults.captureFailureScreenshots or step.captureFailureScreenshot is true.
             Use --resolve (P07) to print UIA structural match info for the Test Bench button.
             Use --run-project (P08+) to execute a fixture with live UIA click + post-check.
             """;

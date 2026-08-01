@@ -178,6 +178,24 @@ Resolve logs always include `layer=` and `confidence=`.
 3. Save, close, reopen — thumbnail and `imageAssetHash` remain in sync.
 4. With Test Bench running, **Run** (image-only step); Runner matches via the Image layer.
 
+## Run reports (P21) and failure screenshots (P22)
+
+Each `--run-project` / Studio **Run** writes a self-contained folder:
+
+`{project}/reports/run-<utc-timestamp>/events.jsonl`
+
+JSONL events include `runStarted`, `stepStarted`, `resolveAttempt` (layer + confidence), `stepFinished` (outcome + attempts), and `runFinished`. Studio **Last report** prints a pass/fail summary of the newest run.
+
+**Opt-in failure screenshots (default off):**
+
+- Project default: `defaults.captureFailureScreenshots`
+- Per-step override: `steps[].captureFailureScreenshot` (Studio checkbox on the step)
+- On failure with capture on → `failure-<stepId>.png` beside `events.jsonl`
+- Capture off → no PNG
+- Older runs under `reports/` rotate (keep last 20)
+
+Fixtures: `fixtures/projects/failure-screenshot-on.pflow`, `failure-screenshot-off.pflow` (missing AutomationId → FailedStep).
+
 ## Run Test Bench
 
 ```powershell
@@ -196,9 +214,9 @@ dotnet test PixelFlow.slnx
 
 | Path | Role |
 |---|---|
-| `src/PixelFlow.Core` | Shared project model, JSON, store, migrations, IPC schema, runner engine |
-| `src/PixelFlow.Runner` | Automation worker (named-pipe host, locator chain, verified click) |
-| `src/PixelFlow.Studio` | WPF editor shell (list script editor, inline image tokens, snip→assets, run/pause/stop IPC, UIA inspector, test-locator) |
+| `src/PixelFlow.Core` | Shared project model, JSON, store, migrations, IPC schema, runner engine, run reports |
+| `src/PixelFlow.Runner` | Automation worker (named-pipe host, locator chain, verified click, report writer) |
+| `src/PixelFlow.Studio` | WPF editor shell (list script editor, inline image tokens, snip→assets, run/pause/stop IPC, UIA inspector, test-locator, last report) |
 | `src/PixelFlow.TestBench` | Target app for locator/integration tests (WPF + Win32 + OCR + image) |
 | `tests/PixelFlow.Core.Tests` | Unit tests |
 | `fixtures/projects` | Sample `.pflow` project bundles |

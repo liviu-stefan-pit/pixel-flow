@@ -8,6 +8,7 @@ public static class ProjectPaths
     public const string ProjectFileName = "project.json";
     public const string AssetsFolderName = "assets";
     public const string HistoryFolderName = "history";
+    public const string ReportsFolderName = "reports";
     public const string TempFileName = "project.json.tmp";
 
     public static string ProjectFile(string projectFolder) =>
@@ -21,6 +22,9 @@ public static class ProjectPaths
 
     public static string HistoryFolder(string projectFolder) =>
         Path.Combine(projectFolder, HistoryFolderName);
+
+    public static string ReportsFolder(string projectFolder) =>
+        Path.Combine(projectFolder, ReportsFolderName);
 
     /// <summary>
     /// Content-hash asset file name convention.

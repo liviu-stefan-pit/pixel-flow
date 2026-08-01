@@ -22,6 +22,12 @@ public sealed class ProjectDefaults
     public int TimeoutMs { get; set; } = 5000;
 
     public RetryPolicy Retry { get; set; } = new();
+
+    /// <summary>
+    /// P22: when true, capture a screenshot on step failure unless the step overrides.
+    /// Default off (opt-in; keep off for sensitive flows).
+    /// </summary>
+    public bool CaptureFailureScreenshots { get; set; }
 }
 
 public sealed class RetryPolicy
@@ -49,6 +55,12 @@ public sealed class ScriptStep
 
     /// <summary>Duration for Wait steps, in milliseconds.</summary>
     public int? WaitMs { get; set; }
+
+    /// <summary>
+    /// P22: per-step override for failure screenshots. Null inherits
+    /// <see cref="ProjectDefaults.CaptureFailureScreenshots"/> (default off).
+    /// </summary>
+    public bool? CaptureFailureScreenshot { get; set; }
 }
 
 public sealed class LocatorChain

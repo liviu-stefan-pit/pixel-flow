@@ -49,8 +49,8 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P18 | Minimal script editor (list-based) | Done |
 | P19 | Screen snipping tool | Done |
 | P20 | Inline image tokens in editor | Done |
-| P21 | Run reports (JSONL) | Todo |
-| P22 | Opt-in failure screenshots | Todo |
+| P21 | Run reports (JSONL) | Done |
+| P22 | Opt-in failure screenshots | Done |
 | P23 | Recovery steps (skip/jump/abort) | Todo |
 | P24 | User-interference detection | Todo |
 | P25 | Clipboard restore on type/paste | Todo |
@@ -324,7 +324,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P21 - Run reports (JSONL)
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Each run writes structured events: step id, timestamps, locator layer, score, outcome.
 - **In scope:** Report writer, Studio opens last report summary.
 - **Out of scope:** Screenshots.
@@ -335,7 +335,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P22 - Opt-in failure screenshots
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** On failure, optionally capture screenshot; default off for sensitive steps.
 - **In scope:** Flag per step/project, retention with reports.
 - **Out of scope:** Redaction ML; simple full-screen or target-window capture is enough.

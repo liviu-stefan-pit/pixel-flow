@@ -18,7 +18,7 @@
                    Opacity="0.85"
                    FontSize="12"
                    Margin="0,0,0,8"
-                   Text="Edit steps in the list, Save through ProjectStore, then Run. Snip inserts an image token on the selected Click step. Emergency stop: Ctrl+Shift+F12." />
+                   Text="Edit steps in the list, Save through ProjectStore, then Run. Snip inserts an image token on the selected Click step. Last report opens the latest JSONL summary. Emergency stop: Ctrl+Shift+F12." />
 
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
             <Button x:Name="OpenButton" Content="Open…" Width="72" Margin="0,0,6,0" Click="OnOpenClick"
@@ -34,6 +34,9 @@
             <Button x:Name="PauseButton" Content="Pause" Width="72" Margin="0,0,6,0" Click="OnPauseClick" IsEnabled="False" />
             <Button x:Name="ResumeButton" Content="Resume" Width="72" Margin="0,0,6,0" Click="OnResumeClick" IsEnabled="False" />
             <Button x:Name="StopButton" Content="Stop" Width="72" Margin="0,0,12,0" Click="OnStopClick" IsEnabled="False" />
+            <Button x:Name="LastReportButton" Content="Last report" Width="88" Margin="0,0,12,0" Click="OnLastReportClick"
+                    AutomationProperties.AutomationId="StudioLastReport"
+                    ToolTip="Open the latest run report summary from reports/" />
             <CheckBox x:Name="InspectorToggle"
                       Content="UIA Inspector"
                       VerticalAlignment="Center"
@@ -188,7 +191,16 @@
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2"
+                            <CheckBox x:Name="StepCaptureFailureScreenshotBox"
+                                      Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2"
+                                      Content="Capture failure screenshot (opt-in)"
+                                      Margin="0,4,0,4"
+                                      Checked="OnStepDetailChanged"
+                                      Unchecked="OnStepDetailChanged"
+                                      AutomationProperties.AutomationId="StudioCaptureFailureScreenshot"
+                                      ToolTip="When checked, a PNG is stored with the run report if this step fails. Default off." />
+
+                            <TextBlock Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2"
                                        TextWrapping="Wrap"
                                        FontSize="10"
                                        Opacity="0.7"

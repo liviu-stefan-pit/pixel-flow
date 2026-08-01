@@ -207,8 +207,18 @@ Companion window with shared click counter plus WPF Submit (`TbSubmit`), native 
 ## Tests
 
 ```powershell
-dotnet test PixelFlow.slnx
+dotnet build PixelFlow.slnx                                     # build once; Live tests launch the built binaries
+dotnet test PixelFlow.slnx --filter Category!=Live               # unit tests (any machine with .NET 10)
+dotnet test PixelFlow.slnx --filter Category=Live                # Live: real Runner + Test Bench, needs an interactive Windows desktop
 ```
+
+- **`PixelFlow.Core.Tests`** — pure unit tests (project model, IPC schema, locator ranking, run reports, screenshot capture flag). No desktop/process dependency.
+- **`PixelFlow.Studio.Tests`** — Studio-facing pure-helper tests (`ImageTokenLoader` path/hash round-trips, **Last report** summary formatting). WPF types only, no window is shown.
+- **`PixelFlow.Integration.Tests`** (`Category=Live`) — launches real `PixelFlow.Runner`/`PixelFlow.TestBench` processes against a temp copy of each fixture (never dirties `fixtures/projects/*/reports/`):
+  - Full locator fixture matrix (`click-submit`, `chain-uia-wins`, `chain-win32-fallback`, `win32-click`, `ocr-click`, `image-click`, and their miss counterparts) asserting exit code + `events.jsonl` layer/outcome/confidence.
+  - P22 screenshot on/off assertions (PNG present + `screenshot` field vs. no PNG).
+  - Studio↔Runner IPC contract via `RunnerSession` (the same class Studio's buttons call): Run, Pause/Resume, Stop/Abort, and killing the Runner process mid-run.
+  - Starts `PixelFlow.TestBench` automatically (reuses an already-running instance if found) and skips cleanly (not a hard failure) if no interactive desktop is available.
 
 ## Layout
 
@@ -218,7 +228,9 @@ dotnet test PixelFlow.slnx
 | `src/PixelFlow.Runner` | Automation worker (named-pipe host, locator chain, verified click, report writer) |
 | `src/PixelFlow.Studio` | WPF editor shell (list script editor, inline image tokens, snip→assets, run/pause/stop IPC, UIA inspector, test-locator, last report) |
 | `src/PixelFlow.TestBench` | Target app for locator/integration tests (WPF + Win32 + OCR + image) |
-| `tests/PixelFlow.Core.Tests` | Unit tests |
+| `tests/PixelFlow.Core.Tests` | Unit tests (project model, IPC, locators, run reports) |
+| `tests/PixelFlow.Studio.Tests` | Studio pure-helper unit tests (image tokens, last-report summary) |
+| `tests/PixelFlow.Integration.Tests` | Live end-to-end tests (`Category=Live`): real Runner + Test Bench + IPC |
 | `fixtures/projects` | Sample `.pflow` project bundles |
 
 ## Status

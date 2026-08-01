@@ -7,5 +7,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PixelFlow.Core.Tests/PixelFlow.Core.Tests.csproj" />
+    <Project Path="tests/PixelFlow.Integration.Tests/PixelFlow.Integration.Tests.csproj" />
+    <Project Path="tests/PixelFlow.Studio.Tests/PixelFlow.Studio.Tests.csproj" />
   </Folder>
 </Solution>

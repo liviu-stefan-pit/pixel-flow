@@ -59,8 +59,8 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P28 | Broader Test Bench surfaces | Done |
 | P29 | Project trust prompt | Done |
 | P30 | Secrets by reference | Done |
-| P31 | Unsigned installer package | Todo |
-| P32 | Signed release groundwork | Todo |
+| P31 | Unsigned installer package | Done |
+| P32 | Signed release groundwork | Done |
 
 ---
 
@@ -453,7 +453,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P31 - Unsigned installer package
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Produce an installable package (e.g. MSIX or setup.exe) for local testing without Authenticode yet.
 - **In scope:** Install/update/uninstall on a clean folder/VM.
 - **Out of scope:** Store submission, uiAccess.
@@ -462,10 +462,11 @@ This is the day-to-day implementation checklist. Architecture and rationale live
   2. App runs.
   3. Uninstall removes entry points.
 - **Done when:** Install/run/uninstall documented and verified.
+- **Delivery (P31):** `scripts/pack.ps1` publishes Studio+Runner side-by-side under `artifacts/package/PixelFlow` (+ optional zip). `scripts/install.ps1` / `uninstall.ps1` install to `%LocalAppData%\Programs\PixelFlow`, Start Menu shortcut, and HKCU Apps & Features entry. Docs: `docs/packaging.md`. Verify: `scripts/verify-packaging.ps1`.
 
 ## P32 - Signed release groundwork
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Wire signing + dependency vulnerability scan in release build; document uiAccess prerequisites (do not enable uiAccess in v1 unless explicitly decided).
 - **In scope:** CI/release notes, `dotnet list package --vulnerable`, signing pipeline placeholders/secrets docs.
 - **Out of scope:** Shipping elevated uiAccess automation as a product feature.
@@ -473,6 +474,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
   1. Release build produces signed artifacts (or dry-run with test cert).
   2. Vulnerability scan runs and fails the build on known severe issues (or reports cleanly).
 - **Done when:** Signing + scan path documented and exercised once.
+- **Delivery (P32):** `scripts/sign.ps1` (self-signed dry-run or PFX via secrets), `scripts/scan-vulnerabilities.ps1`, `.github/workflows/ci.yml` (build + non-Live tests + scan + pack + sign dry-run), `docs/signing-and-release.md` (secrets placeholders + uiAccess prerequisites; uiAccess not enabled).
 
 ---
 

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-scan:
+    name: Build, unit tests, vulnerability scan
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore & build
+        run: dotnet build PixelFlow.slnx -c Release --verbosity minimal
+
+      - name: Unit / non-Live tests
+        run: dotnet test PixelFlow.slnx -c Release --no-build --filter Category!=Live --verbosity minimal
+
+      - name: Vulnerability scan
+        shell: pwsh
+        run: |
+          .\scripts\scan-vulnerabilities.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Pack unsigned (P31 layout)
+        shell: pwsh
+        run: .\scripts\pack.ps1 -Configuration Release -SkipZip
+
+      - name: Sign dry-run (P32)
+        shell: pwsh
+        run: |
+          .\scripts\sign.ps1 -PayloadDir artifacts\package\PixelFlow
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  # Live E2E needs an interactive desktop; run locally / on a dedicated agent:
+  #   dotnet test PixelFlow.slnx --filter Category=Live

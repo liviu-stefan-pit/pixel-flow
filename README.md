@@ -7,6 +7,8 @@ Windows attended desktop automation studio (.NET 10 + WPF). Architecture and imp
 - [Architecture plan](docs/architecture-plan.md) — product scope, stack, reliability design
 - [Executable phases](docs/phases.md) — small implementation slices; agent verifies each phase before Done
 - [Agent prompt](docs/agent-phase-prompt.md) — paste into a new chat; includes agent-owned verification (unit → E2E)
+- [Packaging (unsigned install)](docs/packaging.md) — P31 pack / install / uninstall
+- [Signing & release groundwork](docs/signing-and-release.md) — P32 Authenticode dry-run, vuln scan, uiAccess prerequisites
 
 ## Prerequisites
 
@@ -295,6 +297,28 @@ Companion window with shared click counter plus WPF Submit (`TbSubmit`), Type ta
 
 Electron/WebView2 deferred beyond P28.
 
+## Package / install (P31)
+
+Unsigned current-user install (no Authenticode). Details: [docs/packaging.md](docs/packaging.md).
+
+```powershell
+.\scripts\pack.ps1                          # → artifacts/package/PixelFlow (+ zip)
+.\scripts\install.ps1                       # → %LocalAppData%\Programs\PixelFlow + Start Menu
+# Launch PixelFlow Studio from Start Menu, or:
+& "$env:LOCALAPPDATA\Programs\PixelFlow\PixelFlow.Studio.exe"
+.\scripts\uninstall.ps1                     # removes files, Start Menu, Apps & Features entry
+.\scripts\verify-packaging.ps1              # agent checklist: pack → install → run → uninstall
+```
+
+## Signing & vulnerability scan (P32)
+
+```powershell
+.\scripts\scan-vulnerabilities.ps1          # fails on known vulnerable NuGet packages
+.\scripts\pack.ps1; .\scripts\sign.ps1      # dry-run Authenticode with a temporary self-signed cert
+```
+
+Production PFX signing, CI secrets placeholders, and **uiAccess prerequisites (not enabled in v1)** are in [docs/signing-and-release.md](docs/signing-and-release.md). CI: `.github/workflows/ci.yml`.
+
 ## Tests
 
 ```powershell
@@ -302,6 +326,7 @@ dotnet build PixelFlow.slnx                                     # build once; Li
 dotnet test PixelFlow.slnx --filter Category!=Live               # unit tests (any machine with .NET 10)
 dotnet test PixelFlow.slnx --filter Category=Live                # Live: real Runner + Test Bench, needs an interactive Windows desktop
 ```
+
 
 After every phase, agents must run **both** filters (full suite) before marking Done — see [agent-phase-prompt.md](docs/agent-phase-prompt.md).
 
@@ -333,7 +358,11 @@ After every phase, agents must run **both** filters (full suite) before marking 
 | `tests/PixelFlow.Studio.Tests` | Studio pure-helper unit tests (image tokens, last-report summary) |
 | `tests/PixelFlow.Integration.Tests` | Live end-to-end tests (`Category=Live`): real Runner + Test Bench + IPC |
 | `fixtures/projects` | Sample `.pflow` project bundles |
+| `scripts/` | Pack / install / uninstall, Authenticode dry-run, vulnerability scan |
+| `docs/packaging.md` | Unsigned installer instructions (P31) |
+| `docs/signing-and-release.md` | Signing pipeline + uiAccess prerequisites (P32) |
+| `.github/workflows/ci.yml` | Build, non-Live tests, vuln scan, pack + sign dry-run |
 
 ## Status
 
-Phases **P00–P30** implemented (project trust + secrets by reference). See [docs/phases.md](docs/phases.md).
+Phases **P00–P32** implemented (unsigned installer + signed-release groundwork). See [docs/phases.md](docs/phases.md).

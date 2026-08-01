@@ -195,6 +195,8 @@ Every run produces a **self-contained run report**, because "it didn't work" is 
 
 ## 10. Test Strategy and Compatibility Matrix
 
+**Phase delivery (director mode):** the implementing agent owns verification for each executable phase in [phases.md](./phases.md) — unit/component tests, live integration against the Test Bench where applicable, end-to-end checklist execution, and phase-scoped timing/performance checks — then fixes until green before marking the phase Done. The human directs scope; they are not the primary QA gate. Process details: [agent-phase-prompt.md](./agent-phase-prompt.md).
+
 Automated test layers:
 
 - **Parser/schema tests**: golden-file round-trip and migration tests across every historical `schemaVersion`.

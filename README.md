@@ -5,8 +5,8 @@ Windows attended desktop automation studio (.NET 10 + WPF). Architecture and imp
 ## Docs
 
 - [Architecture plan](docs/architecture-plan.md) — product scope, stack, reliability design
-- [Executable phases](docs/phases.md) — small manually testable implementation slices
-- [Agent prompt](docs/agent-phase-prompt.md) — paste into a new chat to implement one phase
+- [Executable phases](docs/phases.md) — small implementation slices; agent verifies each phase before Done
+- [Agent prompt](docs/agent-phase-prompt.md) — paste into a new chat; includes agent-owned verification (unit → E2E)
 
 ## Prerequisites
 

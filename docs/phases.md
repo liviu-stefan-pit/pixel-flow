@@ -48,7 +48,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P17 | Test-this-locator action | Done |
 | P18 | Minimal script editor (list-based) | Done |
 | P19 | Screen snipping tool | Done |
-| P20 | Inline image tokens in editor | Todo |
+| P20 | Inline image tokens in editor | Done |
 | P21 | Run reports (JSONL) | Todo |
 | P22 | Opt-in failure screenshots | Todo |
 | P23 | Recovery steps (skip/jump/abort) | Todo |
@@ -312,7 +312,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P20 - Inline image tokens in editor
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Show snipped thumbnails inline in the step editor and map them to image locator assets in the model.
 - **In scope:** Token UI <-> model binding.
 - **Out of scope:** Full FlowDocument word-processor polish beyond needed token UX.

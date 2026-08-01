@@ -175,6 +175,64 @@ public sealed class ProjectStoreTests
         Assert.Equal("TbSubmit", loaded.Steps[2].Locator!.Layers[0].AutomationId);
     }
 
+    [Fact]
+    public void ClickWithImageToken_RoundTripsHashAndAssetFile()
+    {
+        using var temp = new TempDirectory();
+        var store = new ProjectStore();
+        var projectFolder = Path.Combine(temp.Path, "image-token.pflow");
+
+        // Minimal valid PNG (1x1 transparent).
+        var png = Convert.FromHexString(
+            "89504E470D0A1A0A0000000D49484452000000010000000108060000001F15C489" +
+            "0000000A49444154789A63000100000500010D0A2DB40000000049454E44AE426082");
+
+        store.Save(projectFolder, MinimalDocument("image-token"));
+        var hash = store.SavePngAsset(projectFolder, png);
+
+        var document = new ProjectDocument
+        {
+            SchemaVersion = ProjectSchema.CurrentVersion,
+            Name = "image-token",
+            Steps =
+            [
+                new ScriptStep
+                {
+                    Id = "click-img",
+                    Type = "Click",
+                    Locator = new LocatorChain
+                    {
+                        Scope = new ProcessWindowScope
+                        {
+                            ProcessName = "PixelFlow.TestBench",
+                            WindowTitle = "Test Bench",
+                        },
+                        Layers =
+                        [
+                            new LocatorLayer
+                            {
+                                Kind = "Image",
+                                Enabled = true,
+                                ConfidenceThreshold = 0.85,
+                                ImageAssetHash = hash,
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
+        store.Save(projectFolder, document);
+        var loaded = store.Load(projectFolder);
+
+        Assert.Single(loaded.Steps);
+        var layer = Assert.Single(loaded.Steps[0].Locator!.Layers);
+        Assert.Equal("Image", layer.Kind);
+        Assert.Equal(hash, layer.ImageAssetHash);
+        Assert.True(File.Exists(ProjectPaths.AssetPath(projectFolder, hash)));
+        Assert.Equal(png, File.ReadAllBytes(ProjectPaths.AssetPath(projectFolder, hash)));
+    }
+
     private static ProjectDocument MinimalDocument(string name) => new()
     {
         SchemaVersion = ProjectSchema.CurrentVersion,

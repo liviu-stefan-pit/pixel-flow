@@ -18,7 +18,7 @@
                    Opacity="0.85"
                    FontSize="12"
                    Margin="0,0,0,8"
-                   Text="Edit steps in the list, Save through ProjectStore, then Run. Snip stores hashed PNGs under assets/. Emergency stop: Ctrl+Shift+F12." />
+                   Text="Edit steps in the list, Save through ProjectStore, then Run. Snip inserts an image token on the selected Click step. Emergency stop: Ctrl+Shift+F12." />
 
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
             <Button x:Name="OpenButton" Content="Open…" Width="72" Margin="0,0,6,0" Click="OnOpenClick"
@@ -97,6 +97,7 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Id" VerticalAlignment="Center" Margin="0,0,0,4" />
@@ -139,18 +140,80 @@
                             <TextBox x:Name="StepNameBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,4"
                                      LostFocus="OnStepDetailChanged" />
 
-                            <TextBlock Grid.Row="9" Grid.Column="0" Text="Image hash" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepImageHashBox" Grid.Row="9" Grid.Column="1" Margin="0,0,0,4"
-                                     IsReadOnly="True" Opacity="0.85"
-                                     ToolTip="Set by Snip when an Image layer is present (P20 will insert inline tokens)." />
+                            <TextBlock Grid.Row="9" Grid.Column="0" Text="Image" VerticalAlignment="Top" Margin="0,4,0,4" />
+                            <Border x:Name="StepImageTokenBorder"
+                                    Grid.Row="9" Grid.Column="1"
+                                    Margin="0,0,0,4"
+                                    Padding="4"
+                                    BorderBrush="#FF888888"
+                                    BorderThickness="1"
+                                    Background="#FFF7F7F7"
+                                    ToolTip="Inline image token bound to the Click step Image locator asset (Snip to insert).">
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="56" Height="56" BorderBrush="#FFAAAAAA" BorderThickness="1" Background="White">
+                                        <Grid>
+                                            <TextBlock x:Name="StepImageTokenPlaceholder"
+                                                       Text="(none)"
+                                                       FontSize="10"
+                                                       Opacity="0.55"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                            <Image x:Name="StepImageTokenImage"
+                                                   Stretch="Uniform"
+                                                   MaxWidth="54"
+                                                   MaxHeight="54"
+                                                   AutomationProperties.AutomationId="StudioImageToken" />
+                                        </Grid>
+                                    </Border>
+                                    <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
+                                        <TextBox x:Name="StepImageHashBox"
+                                                 IsReadOnly="True"
+                                                 FontFamily="Consolas"
+                                                 FontSize="10"
+                                                 MinWidth="120"
+                                                 MaxWidth="200"
+                                                 TextWrapping="Wrap"
+                                                 BorderThickness="0"
+                                                 Background="Transparent"
+                                                 AutomationProperties.AutomationId="StudioStepImageHash" />
+                                        <Button x:Name="ClearImageTokenButton"
+                                                Content="Clear image"
+                                                HorizontalAlignment="Left"
+                                                Margin="0,4,0,0"
+                                                Padding="8,2"
+                                                Click="OnClearImageTokenClick"
+                                                AutomationProperties.AutomationId="StudioClearImageToken"
+                                                ToolTip="Remove the Image locator layer from this Click step" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2"
+                                       TextWrapping="Wrap"
+                                       FontSize="10"
+                                       Opacity="0.7"
+                                       Margin="0,0,0,2"
+                                       Text="Snip while a Click step is selected to insert the thumbnail token." />
                         </Grid>
                     </ScrollViewer>
                 </GroupBox>
 
                 <ListBox x:Name="StepsList"
-                         DisplayMemberPath="Display"
                          SelectionChanged="OnStepsSelectionChanged"
-                         AutomationProperties.AutomationId="StudioStepsList" />
+                         AutomationProperties.AutomationId="StudioStepsList">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="0,1">
+                                <Border Width="22" Height="22" Margin="0,0,6,0"
+                                        BorderBrush="#FFAAAAAA" BorderThickness="1" Background="White"
+                                        Visibility="{Binding ThumbnailVisibility}">
+                                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" />
+                                </Border>
+                                <TextBlock Text="{Binding Display}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </DockPanel>
 
             <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" />

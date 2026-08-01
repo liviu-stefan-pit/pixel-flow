@@ -32,7 +32,7 @@ Optional: set `PIXELFLOW_RUNNER_PATH` to a Runner exe/dll if auto-discovery fail
 
 **Script editor (P18):** Open / Save / New, ordered step list (Wait / Click / Type), add/remove/reorder, step details bound to `project.json` via `ProjectStore`. Run auto-saves first.
 
-**Snip (P19):** **Snip** opens a region overlay; PNG is stored as `assets/sha256-<hex>.png` (identical bytes reuse the same hash). Hash is shown under Last snip; if a Click step is selected, an Image layer is attached with that hash (inline tokens are P20).
+**Snip (P19/P20):** **Snip** opens a region overlay; PNG is stored as `assets/sha256-<hex>.png` (identical bytes reuse the same hash). If a Click step is selected, an Image locator layer is attached and an inline thumbnail token appears in step details (and the step list).
 
 **Emergency stop:** `Ctrl+Shift+F12` (global, registered by the Runner). Works even when another window has focus.
 
@@ -171,6 +171,13 @@ Resolve logs always include `layer=` and `confidence=`.
 3. Confirm `assets/sha256-....png` under the project folder; Last snip shows the hash.
 4. Snip the same pixels again (or identical bytes); hash is reused (single file).
 
+### P20 — inline image tokens
+
+1. Open `fixtures/projects/image-click.pflow` (or Snip onto a Click step).
+2. Step details show the thumbnail token + hash; the step list shows a small preview.
+3. Save, close, reopen — thumbnail and `imageAssetHash` remain in sync.
+4. With Test Bench running, **Run** (image-only step); Runner matches via the Image layer.
+
 ## Run Test Bench
 
 ```powershell
@@ -191,11 +198,11 @@ dotnet test PixelFlow.slnx
 |---|---|
 | `src/PixelFlow.Core` | Shared project model, JSON, store, migrations, IPC schema, runner engine |
 | `src/PixelFlow.Runner` | Automation worker (named-pipe host, locator chain, verified click) |
-| `src/PixelFlow.Studio` | WPF editor shell (list script editor, snip→assets, run/pause/stop IPC, UIA inspector, test-locator) |
+| `src/PixelFlow.Studio` | WPF editor shell (list script editor, inline image tokens, snip→assets, run/pause/stop IPC, UIA inspector, test-locator) |
 | `src/PixelFlow.TestBench` | Target app for locator/integration tests (WPF + Win32 + OCR + image) |
 | `tests/PixelFlow.Core.Tests` | Unit tests |
 | `fixtures/projects` | Sample `.pflow` project bundles |
 
 ## Status
 
-Phases **P00–P19** implemented (list script editor + screen snip into hashed assets). See [docs/phases.md](docs/phases.md).
+Phases **P00–P20** implemented (list script editor + snip assets + inline image tokens). See [docs/phases.md](docs/phases.md).

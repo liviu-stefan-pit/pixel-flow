@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using PixelFlow.Core.Projects;
 
@@ -144,6 +145,7 @@ public partial class MainWindow : Window
         _lastSnipHash = null;
         LastSnipBox.Text = "No snip yet.";
         RefreshStepList();
+        RefreshImageTokenUi(null);
         UpdateProjectPathText();
         AppendLog("New blank project (Save to choose a folder).");
     }
@@ -222,7 +224,48 @@ public partial class MainWindow : Window
 
         imageLayer.ImageAssetHash = hash;
         StepImageHashBox.Text = hash;
+        RefreshImageTokenUi(hash);
+        item.RefreshThumbnail(_projectFolder);
         item.NotifyDisplayChanged();
+    }
+
+    private void OnClearImageTokenClick(object sender, RoutedEventArgs e)
+    {
+        if (StepsList.SelectedItem is not StepListItem item)
+        {
+            return;
+        }
+
+        if (!string.Equals(item.Step.Type, "Click", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var locator = item.Step.Locator;
+        if (locator is null)
+        {
+            return;
+        }
+
+        locator.Layers.RemoveAll(l =>
+            string.Equals(l.Kind, "Image", StringComparison.OrdinalIgnoreCase));
+
+        StepImageHashBox.Text = "";
+        RefreshImageTokenUi(null);
+        item.RefreshThumbnail(_projectFolder);
+        item.NotifyDisplayChanged();
+        AppendLog($"Cleared image token on step {item.Step.Id}");
+    }
+
+    private void RefreshImageTokenUi(string? imageAssetHash)
+    {
+        StepImageHashBox.Text = imageAssetHash ?? "";
+        var thumbnail = ImageTokenLoader.TryLoadThumbnail(_projectFolder, imageAssetHash, decodePixelWidth: 112);
+        StepImageTokenImage.Source = thumbnail;
+        StepImageTokenPlaceholder.Visibility = thumbnail is null ? Visibility.Visible : Visibility.Collapsed;
+        ClearImageTokenButton.IsEnabled =
+            StepsList.SelectedItem is StepListItem &&
+            !string.IsNullOrWhiteSpace(imageAssetHash);
     }
 
     private bool EnsureProjectFolderForSave()
@@ -289,6 +332,7 @@ public partial class MainWindow : Window
         CommitSelectedStepDetails();
         _document.Steps.Add(step);
         var item = new StepListItem(step);
+        item.RefreshThumbnail(_projectFolder);
         _stepItems.Add(item);
         StepsList.SelectedItem = item;
         StepsList.ScrollIntoView(item);
@@ -424,12 +468,29 @@ public partial class MainWindow : Window
             uia.ControlType = NullIfBlank(StepControlTypeBox.Text);
             uia.Name = NullIfBlank(StepNameBox.Text);
 
+            // Keep Image token (thumbnail hash) and model in sync.
+            var tokenHash = NullIfBlank(StepImageHashBox.Text);
             var image = step.Locator.Layers
                 .FirstOrDefault(l => string.Equals(l.Kind, "Image", StringComparison.OrdinalIgnoreCase));
-            if (image is not null && !string.IsNullOrWhiteSpace(_lastSnipHash) &&
-                string.IsNullOrWhiteSpace(image.ImageAssetHash))
+            if (tokenHash is not null)
             {
-                image.ImageAssetHash = _lastSnipHash;
+                if (image is null)
+                {
+                    image = new LocatorLayer
+                    {
+                        Kind = "Image",
+                        Enabled = true,
+                        ConfidenceThreshold = 0.85,
+                    };
+                    step.Locator.Layers.Add(image);
+                }
+
+                image.ImageAssetHash = tokenHash;
+                image.Enabled = true;
+            }
+            else if (image is not null)
+            {
+                step.Locator.Layers.Remove(image);
             }
         }
     }
@@ -463,7 +524,7 @@ public partial class MainWindow : Window
 
             var image = step.Locator?.Layers
                 .FirstOrDefault(l => string.Equals(l.Kind, "Image", StringComparison.OrdinalIgnoreCase));
-            StepImageHashBox.Text = image?.ImageAssetHash ?? "";
+            RefreshImageTokenUi(image?.ImageAssetHash);
         }
         finally
         {
@@ -485,7 +546,7 @@ public partial class MainWindow : Window
             StepAutomationIdBox.Text = "";
             StepControlTypeBox.Text = "";
             StepNameBox.Text = "";
-            StepImageHashBox.Text = "";
+            RefreshImageTokenUi(null);
         }
         finally
         {
@@ -525,6 +586,8 @@ public partial class MainWindow : Window
         StepAutomationIdBox.IsEnabled = hasSelection && isClick;
         StepControlTypeBox.IsEnabled = hasSelection && isClick;
         StepNameBox.IsEnabled = hasSelection && isClick;
+        StepImageTokenBorder.IsEnabled = hasSelection && isClick;
+        ClearImageTokenButton.IsEnabled = hasSelection && isClick && !string.IsNullOrWhiteSpace(StepImageHashBox.Text);
     }
 
     private void RefreshStepList()
@@ -535,7 +598,9 @@ public partial class MainWindow : Window
             _stepItems.Clear();
             foreach (var step in _document.Steps)
             {
-                _stepItems.Add(new StepListItem(step));
+                var item = new StepListItem(step);
+                item.RefreshThumbnail(_projectFolder);
+                _stepItems.Add(item);
             }
 
             if (_stepItems.Count > 0)
@@ -744,7 +809,20 @@ public partial class MainWindow : Window
 
         public string Display => Format(Step);
 
+        public BitmapImage? Thumbnail { get; private set; }
+
+        public Visibility ThumbnailVisibility =>
+            Thumbnail is null ? Visibility.Collapsed : Visibility.Visible;
+
         public event PropertyChangedEventHandler? PropertyChanged;
+
+        public void RefreshThumbnail(string? projectFolder)
+        {
+            var hash = ImageTokenLoader.GetImageAssetHash(Step);
+            Thumbnail = ImageTokenLoader.TryLoadThumbnail(projectFolder, hash, decodePixelWidth: 44);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Thumbnail)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ThumbnailVisibility)));
+        }
 
         public void NotifyDisplayChanged() =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Display)));
@@ -755,11 +833,24 @@ public partial class MainWindow : Window
             {
                 "Wait" => $"{step.Id} | Wait | {step.WaitMs ?? 0}ms",
                 "Type" => $"{step.Id} | Type | {Truncate(step.Text)}",
-                "Click" => $"{step.Id} | Click | {step.Locator?.Layers.FirstOrDefault()?.AutomationId
-                    ?? step.Locator?.Layers.FirstOrDefault(l => l.ImageAssetHash is not null)?.ImageAssetHash
-                    ?? "(no target)"}",
+                "Click" => FormatClick(step),
                 _ => $"{step.Id} | {step.Type}",
             };
+        }
+
+        private static string FormatClick(ScriptStep step)
+        {
+            var imageHash = ImageTokenLoader.GetImageAssetHash(step);
+            if (imageHash is not null)
+            {
+                var shortHash = imageHash.Length > 18 ? imageHash[..18] + "…" : imageHash;
+                return $"{step.Id} | Click | [img] {shortHash}";
+            }
+
+            var automationId = step.Locator?.Layers
+                .FirstOrDefault(l => !string.IsNullOrWhiteSpace(l.AutomationId))
+                ?.AutomationId;
+            return $"{step.Id} | Click | {automationId ?? "(no target)"}";
         }
 
         private static string Truncate(string? text)

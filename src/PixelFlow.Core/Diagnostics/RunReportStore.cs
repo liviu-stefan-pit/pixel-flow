@@ -166,8 +166,17 @@ public sealed class RunReportStore
             return [];
         }
 
+        // FileShare.ReadWrite so Studio/CLI can summarize while the writer still holds the file open.
+        using var stream = new FileStream(
+            eventsFilePath,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite);
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+
         var list = new List<RunReportEvent>();
-        foreach (var line in File.ReadLines(eventsFilePath, Encoding.UTF8))
+        string? line;
+        while ((line = reader.ReadLine()) is not null)
         {
             if (string.IsNullOrWhiteSpace(line))
             {

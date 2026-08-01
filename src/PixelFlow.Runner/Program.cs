@@ -114,7 +114,8 @@ internal static class Program
 
         var reportStore = new RunReportStore();
         using var reporter = reportStore.BeginRun(projectFolder);
-        Console.WriteLine($"[runner] Writing run report: {reporter.ReportDirectory}");
+        var reportDirectory = reporter.ReportDirectory;
+        Console.WriteLine($"[runner] Writing run report: {reportDirectory}");
 
         var services = new LiveStepServices(projectFolder);
         var engine = new RunnerEngine(
@@ -140,10 +141,13 @@ internal static class Program
 
         await engine.RunAsync(project).ConfigureAwait(false);
 
-        Console.WriteLine($"[runner] Finished in state {engine.State}");
+        var finalState = engine.State;
+        reporter.Dispose();
+
+        Console.WriteLine($"[runner] Finished in state {finalState}");
         Console.WriteLine(
-            $"[runner] Report summary:{Environment.NewLine}{RunReportStore.FormatSummary(reporter.ReportDirectory)}");
-        return engine.State == RunnerState.Idle ? 0 : 3;
+            $"[runner] Report summary:{Environment.NewLine}{RunReportStore.FormatSummary(reportDirectory)}");
+        return finalState == RunnerState.Idle ? 0 : 3;
     }
 
     private static bool HasFlag(string[] args, string flag) =>

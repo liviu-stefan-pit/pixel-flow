@@ -179,6 +179,26 @@ public sealed class RunReportTests
     }
 
     [Fact]
+    public void ReadEvents_WorksWhileWriterStillOpen()
+    {
+        using var temp = new TempDir();
+        using var writer = new RunReportStore().BeginRun(temp.Path, runId: "concurrent-read");
+        writer.Write(new RunReportEvent
+        {
+            Event = RunReportEventNames.RunStarted,
+            ProjectName = "concurrent",
+        });
+
+        // Must not throw on Windows even while the writer holds events.jsonl open.
+        var events = RunReportStore.ReadEvents(RunReportStore.EventsPath(writer.ReportDirectory));
+        Assert.Single(events);
+        Assert.Equal(RunReportEventNames.RunStarted, events[0].Event);
+
+        var summary = RunReportStore.FormatSummary(writer.ReportDirectory);
+        Assert.Contains("concurrent", summary);
+    }
+
+    [Fact]
     public void FindLatestReportDirectory_ReturnsNewest()
     {
         using var temp = new TempDir();

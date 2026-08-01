@@ -4,6 +4,8 @@ using System.Windows.Automation;
 using PixelFlow.Core.Coordinates;
 using PixelFlow.Core.Projects;
 using PixelFlow.Core.Runner;
+using PixelFlow.Core.Secrets;
+using PixelFlow.Runner.Secrets;
 
 namespace PixelFlow.Runner.Automation;
 
@@ -13,6 +15,7 @@ namespace PixelFlow.Runner.Automation;
 /// Absolute bounds are stamped with the display generation; a display-change busts the cache and
 /// forces re-resolve so stale coordinates are never clicked.
 /// Type steps paste via the clipboard and always restore prior clipboard contents afterward.
+/// SecretRef Type steps resolve from Windows Credential Manager at runtime (never logged).
 /// </summary>
 internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepExecutor
 {
@@ -24,19 +27,23 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
     private readonly string? _projectFolder;
     private readonly IDisplayChangeTracker _display;
     private readonly AbsoluteCoordinateCache _coordinateCache;
+    private readonly ISecretResolver _secrets;
     private readonly Dictionary<string, int> _counterBeforeByStep = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _expectedTypeTextByStep = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _secretTypeSteps = new(StringComparer.Ordinal);
 
     public LiveStepServices(
         string? projectFolder = null,
         IRunnerDelay? delay = null,
         IDisplayChangeTracker? display = null,
-        AbsoluteCoordinateCache? coordinateCache = null)
+        AbsoluteCoordinateCache? coordinateCache = null,
+        ISecretResolver? secrets = null)
     {
         _projectFolder = projectFolder;
         _delay = delay ?? new SystemRunnerDelay();
         _display = display ?? new DisplayChangeTracker(DisplayChangeWatcher.CaptureTopology());
         _coordinateCache = coordinateCache ?? new AbsoluteCoordinateCache(_display);
+        _secrets = secrets ?? new WindowsCredentialSecretResolver();
     }
 
     /// <summary>Exposed for tests / diagnostics.</summary>
@@ -57,9 +64,9 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
                 DisplayGeneration: _display.Generation);
         }
 
-        if (IsType(step) && string.IsNullOrEmpty(step.Text))
+        if (IsType(step) && !TryResolveTypePayload(step, out _, out var typeError))
         {
-            return ResolveResult.NotFound($"Type step '{step.Id}' has empty Text.");
+            return ResolveResult.NotFound(typeError ?? $"Type step '{step.Id}' has no Text or SecretRef.");
         }
 
         var result = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
@@ -144,11 +151,26 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
 
         if (IsType(step))
         {
-            _expectedTypeTextByStep[step.Id] = step.Text ?? "";
+            if (!TryResolveTypePayload(step, out var expected, out var error))
+            {
+                Console.WriteLine($"[runner] Pre-check failed (step {step.Id}): {error}");
+                return false;
+            }
+
+            _expectedTypeTextByStep[step.Id] = expected;
+            if (!string.IsNullOrWhiteSpace(step.SecretRef))
+            {
+                _secretTypeSteps.Add(step.Id);
+            }
+            else
+            {
+                _secretTypeSteps.Remove(step.Id);
+            }
         }
         else
         {
             _expectedTypeTextByStep.Remove(step.Id);
+            _secretTypeSteps.Remove(step.Id);
         }
 
         return true;
@@ -276,7 +298,17 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
 
     private async Task ExecuteTypeAsync(ScriptStep step, CancellationToken cancellationToken)
     {
-        var text = step.Text ?? "";
+        if (!TryResolveTypePayload(step, out var text, out var error))
+        {
+            throw new InvalidOperationException($"Refusing to type: {error}");
+        }
+
+        var isSecret = !string.IsNullOrWhiteSpace(step.SecretRef);
+        if (isSecret)
+        {
+            _secretTypeSteps.Add(step.Id);
+        }
+
         var live = await ResolveFreshForInputAsync(step, cancellationToken).ConfigureAwait(false);
         if (!live.Found || live.BoundingRect.IsEmpty)
         {
@@ -302,7 +334,10 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         using var clipboard = ClipboardGuard.ReplaceWith(text);
         try
         {
-            Console.WriteLine($"[runner] Type paste via clipboard (step {step.Id}, length={text.Length})");
+            var lengthNote = isSecret
+                ? $"secretRef={step.SecretRef}, length={text.Length}"
+                : $"length={text.Length}";
+            Console.WriteLine($"[runner] Type paste via clipboard (step {step.Id}, {lengthNote})");
             SendInputKeyboard.SelectAll();
             await _delay.DelayAsync(20, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
@@ -410,8 +445,14 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
     {
         if (!_expectedTypeTextByStep.TryGetValue(step.Id, out var expected))
         {
-            expected = step.Text ?? "";
+            if (!TryResolveTypePayload(step, out expected, out _))
+            {
+                expected = "";
+            }
         }
+
+        var isSecret = _secretTypeSteps.Contains(step.Id)
+            || !string.IsNullOrWhiteSpace(step.SecretRef);
 
         Thread.Sleep(50);
 
@@ -422,11 +463,59 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         }
 
         var ok = string.Equals(actual, expected, StringComparison.Ordinal);
-        Console.WriteLine(
-            ok
-                ? $"[runner] Post-check OK (step {step.Id}): typed value matches"
-                : $"[runner] Post-check FAILED (step {step.Id}): expected '{expected}', got '{actual}'");
+        if (isSecret)
+        {
+            Console.WriteLine(
+                ok
+                    ? $"[runner] Post-check OK (step {step.Id}): secret typed value matches (redacted)"
+                    : $"[runner] Post-check FAILED (step {step.Id}): secret typed value mismatch (redacted)");
+        }
+        else
+        {
+            Console.WriteLine(
+                ok
+                    ? $"[runner] Post-check OK (step {step.Id}): typed value matches"
+                    : $"[runner] Post-check FAILED (step {step.Id}): expected '{expected}', got '{actual}'");
+        }
+
         return ok;
+    }
+
+    /// <summary>
+    /// Resolves the Type payload: <see cref="ScriptStep.SecretRef"/> (Credential Manager) wins over
+    /// plaintext <see cref="ScriptStep.Text"/>. Never returns the secret name as the typed value.
+    /// </summary>
+    private bool TryResolveTypePayload(ScriptStep step, out string text, out string? error)
+    {
+        text = "";
+        error = null;
+
+        if (!string.IsNullOrWhiteSpace(step.SecretRef))
+        {
+            if (!_secrets.TryResolve(step.SecretRef, out text, out error))
+            {
+                text = "";
+                error ??= $"Failed to resolve secretRef '{step.SecretRef}'.";
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(text))
+            {
+                error = $"Secret '{step.SecretRef}' resolved to an empty value.";
+                return false;
+            }
+
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(step.Text))
+        {
+            text = step.Text;
+            return true;
+        }
+
+        error = $"Type step '{step.Id}' has empty Text and no SecretRef.";
+        return false;
     }
 
     private void TryInvokeUia(ScriptStep step, ResolveResult live)

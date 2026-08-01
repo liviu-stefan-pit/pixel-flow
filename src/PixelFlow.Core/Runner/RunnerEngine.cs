@@ -697,9 +697,15 @@ public sealed class RunnerEngine
 
     /// <summary>
     /// Effective opt-in: per-step override wins; otherwise project default (false).
+    /// SecretRef Type steps never capture (would risk putting the secret on disk).
     /// </summary>
     public static bool ShouldCaptureFailureScreenshot(ScriptStep step, ProjectDefaults defaults)
     {
+        if (!string.IsNullOrWhiteSpace(step.SecretRef))
+        {
+            return false;
+        }
+
         if (step.CaptureFailureScreenshot.HasValue)
         {
             return step.CaptureFailureScreenshot.Value;

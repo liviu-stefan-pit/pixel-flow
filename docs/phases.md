@@ -57,8 +57,8 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P26 | DPI-aware coordinates | Done |
 | P27 | Display-change invalidation | Done |
 | P28 | Broader Test Bench surfaces | Done |
-| P29 | Project trust prompt | Todo |
-| P30 | Secrets by reference | Todo |
+| P29 | Project trust prompt | Done |
+| P30 | Secrets by reference | Done |
 | P31 | Unsigned installer package | Todo |
 | P32 | Signed release groundwork | Todo |
 
@@ -429,7 +429,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P29 - Project trust prompt
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Opening a project from an untrusted path prompts before run.
 - **In scope:** Trust store (per user), block run until trusted.
 - **Out of scope:** Full enterprise policy engine.
@@ -441,7 +441,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P30 - Secrets by reference
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Type/secret steps reference Windows Credential Manager by name; secret values never written to `project.json` or reports.
 - **In scope:** Secret reference field, resolve at runtime, redaction in logs.
 - **Out of scope:** Custom vault providers.

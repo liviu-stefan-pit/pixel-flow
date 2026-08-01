@@ -101,6 +101,8 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Id" VerticalAlignment="Center" Margin="0,0,0,4" />
@@ -123,29 +125,35 @@
                             <TextBox x:Name="StepTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,4"
                                      LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepText" />
 
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Process" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepProcessBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,4"
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="SecretRef" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepSecretRefBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,4"
+                                     LostFocus="OnStepDetailChanged"
+                                     ToolTip="Windows Credential Manager target name (Type steps). Value never saved to project.json."
+                                     AutomationProperties.AutomationId="StudioStepSecretRef" />
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Process" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepProcessBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,4"
                                      LostFocus="OnStepDetailChanged" />
 
-                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Window" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepWindowBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,4"
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Window" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepWindowBox" Grid.Row="6" Grid.Column="1" Margin="0,0,0,4"
                                      LostFocus="OnStepDetailChanged" />
 
-                            <TextBlock Grid.Row="6" Grid.Column="0" Text="AutomationId" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepAutomationIdBox" Grid.Row="6" Grid.Column="1" Margin="0,0,0,4"
+                            <TextBlock Grid.Row="7" Grid.Column="0" Text="AutomationId" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepAutomationIdBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,4"
                                      LostFocus="OnStepDetailChanged" />
 
-                            <TextBlock Grid.Row="7" Grid.Column="0" Text="ControlType" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepControlTypeBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,4"
+                            <TextBlock Grid.Row="8" Grid.Column="0" Text="ControlType" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepControlTypeBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,4"
                                      LostFocus="OnStepDetailChanged" />
 
-                            <TextBlock Grid.Row="8" Grid.Column="0" Text="Name" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepNameBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,4"
+                            <TextBlock Grid.Row="9" Grid.Column="0" Text="Name" VerticalAlignment="Center" Margin="0,0,0,4" />
+                            <TextBox x:Name="StepNameBox" Grid.Row="9" Grid.Column="1" Margin="0,0,0,4"
                                      LostFocus="OnStepDetailChanged" />
 
-                            <TextBlock Grid.Row="9" Grid.Column="0" Text="Image" VerticalAlignment="Top" Margin="0,4,0,4" />
+                            <TextBlock Grid.Row="10" Grid.Column="0" Text="Image" VerticalAlignment="Top" Margin="0,4,0,4" />
                             <Border x:Name="StepImageTokenBorder"
-                                    Grid.Row="9" Grid.Column="1"
+                                    Grid.Row="10" Grid.Column="1"
                                     Margin="0,0,0,4"
                                     Padding="4"
                                     BorderBrush="#FF888888"
@@ -192,20 +200,20 @@
                             </Border>
 
                             <CheckBox x:Name="StepCaptureFailureScreenshotBox"
-                                      Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2"
+                                      Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2"
                                       Content="Capture failure screenshot (opt-in)"
                                       Margin="0,4,0,4"
                                       Checked="OnStepDetailChanged"
                                       Unchecked="OnStepDetailChanged"
                                       AutomationProperties.AutomationId="StudioCaptureFailureScreenshot"
-                                      ToolTip="When checked, a PNG is stored with the run report if this step fails. Default off." />
+                                      ToolTip="When checked, a PNG is stored with the run report if this step fails. Default off. Forced off for SecretRef steps." />
 
-                            <TextBlock Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2"
+                            <TextBlock Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2"
                                        TextWrapping="Wrap"
                                        FontSize="10"
                                        Opacity="0.7"
                                        Margin="0,0,0,2"
-                                       Text="Snip while a Click step is selected to insert the thumbnail token." />
+                                       Text="Snip while a Click step is selected to insert the thumbnail token. SecretRef = Credential Manager name (never stored as plaintext)." />
                         </Grid>
                     </ScrollViewer>
                 </GroupBox>

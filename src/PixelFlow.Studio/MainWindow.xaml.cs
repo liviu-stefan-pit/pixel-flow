@@ -7,6 +7,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using PixelFlow.Core.Diagnostics;
 using PixelFlow.Core.Projects;
+using PixelFlow.Core.Trust;
 
 namespace PixelFlow.Studio;
 
@@ -14,6 +15,7 @@ public partial class MainWindow : Window
 {
     private readonly RunnerSession _session = new();
     private readonly ProjectStore _store = new();
+    private readonly ProjectTrustStore _trustStore = new();
     private readonly UiaInspectorService _inspector;
     private readonly ObservableCollection<StepListItem> _stepItems = [];
 
@@ -87,6 +89,68 @@ public partial class MainWindow : Window
         RefreshStepList();
         UpdateProjectPathText();
         AppendLog($"Loaded {_document.Steps.Count} step(s) from {_projectFolder}");
+        PromptProjectTrustIfNeeded(promptOnOpen: true);
+    }
+
+    /// <summary>
+    /// P29: projects are treated as executable content. Untrusted folders prompt on open;
+    /// Run is blocked until the user accepts trust (remembered per user under LocalAppData).
+    /// </summary>
+    private bool PromptProjectTrustIfNeeded(bool promptOnOpen)
+    {
+        if (string.IsNullOrWhiteSpace(_projectFolder))
+        {
+            return false;
+        }
+
+        if (_trustStore.IsTrusted(_projectFolder))
+        {
+            if (promptOnOpen)
+            {
+                AppendLog("Project trust: already trusted.");
+            }
+
+            return true;
+        }
+
+        var path = _projectFolder;
+        var result = MessageBox.Show(
+            this,
+            "This project can drive real keyboard and mouse input on your machine.\n\n"
+            + "Trust and allow automation from:\n"
+            + path
+            + "\n\nDecline keeps the project open for editing but blocks Run until trusted.",
+            "Project trust",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            _trustStore.Trust(path);
+            AppendLog("Project trust: accepted — Run allowed.");
+            return true;
+        }
+
+        AppendLog("Project trust: declined — Run blocked until trusted.");
+        return false;
+    }
+
+    /// <summary>Returns true when the current project folder is trusted (prompts if not).</summary>
+    private bool EnsureProjectTrustedForRun()
+    {
+        if (string.IsNullOrWhiteSpace(_projectFolder))
+        {
+            return false;
+        }
+
+        if (_trustStore.IsTrusted(_projectFolder))
+        {
+            return true;
+        }
+
+        // Second chance at Run after an open-time decline.
+        return PromptProjectTrustIfNeeded(promptOnOpen: false);
     }
 
     private void OnOpenClick(object sender, RoutedEventArgs e)
@@ -474,6 +538,7 @@ public partial class MainWindow : Window
         }
 
         step.Text = string.IsNullOrWhiteSpace(StepTextBox.Text) ? null : StepTextBox.Text;
+        step.SecretRef = string.IsNullOrWhiteSpace(StepSecretRefBox.Text) ? null : StepSecretRefBox.Text.Trim();
 
         // Opt-in failure screenshot: checked => true; unchecked => clear override (inherit project default = off).
         step.CaptureFailureScreenshot = StepCaptureFailureScreenshotBox.IsChecked == true ? true : null;
@@ -544,6 +609,7 @@ public partial class MainWindow : Window
             SelectStepType(step.Type);
             StepWaitMsBox.Text = step.WaitMs?.ToString() ?? "";
             StepTextBox.Text = step.Text ?? "";
+            StepSecretRefBox.Text = step.SecretRef ?? "";
             StepCaptureFailureScreenshotBox.IsChecked = step.CaptureFailureScreenshot == true;
 
             var scope = step.Locator?.Scope;
@@ -575,6 +641,7 @@ public partial class MainWindow : Window
             StepTypeBox.SelectedIndex = -1;
             StepWaitMsBox.Text = "";
             StepTextBox.Text = "";
+            StepSecretRefBox.Text = "";
             StepProcessBox.Text = "";
             StepWindowBox.Text = "";
             StepAutomationIdBox.Text = "";
@@ -616,6 +683,7 @@ public partial class MainWindow : Window
         StepTypeBox.IsEnabled = hasSelection;
         StepWaitMsBox.IsEnabled = hasSelection && isWait;
         StepTextBox.IsEnabled = hasSelection && isType;
+        StepSecretRefBox.IsEnabled = hasSelection && isType;
         var needsLocator = isClick || isType;
         StepProcessBox.IsEnabled = hasSelection && needsLocator;
         StepWindowBox.IsEnabled = hasSelection && needsLocator;
@@ -739,6 +807,19 @@ public partial class MainWindow : Window
             if (!EnsureProjectFolderForSave())
             {
                 AppendLog("Run cancelled — save a project folder first.");
+                return;
+            }
+
+            if (!EnsureProjectTrustedForRun())
+            {
+                AppendLog("Run blocked — project is not trusted.");
+                MessageBox.Show(
+                    this,
+                    "Run is blocked until you trust this project folder.\n\n"
+                    + "Re-open the project or click Run again and choose Yes on the trust prompt.",
+                    "Project not trusted",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
                 return;
             }
 
@@ -902,10 +983,20 @@ public partial class MainWindow : Window
             return step.Type switch
             {
                 "Wait" => $"{step.Id} | Wait | {step.WaitMs ?? 0}ms",
-                "Type" => $"{step.Id} | Type | {Truncate(step.Text)}",
+                "Type" => FormatType(step),
                 "Click" => FormatClick(step),
                 _ => $"{step.Id} | {step.Type}",
             };
+        }
+
+        private static string FormatType(ScriptStep step)
+        {
+            if (!string.IsNullOrWhiteSpace(step.SecretRef))
+            {
+                return $"{step.Id} | Type | secret:{step.SecretRef}";
+            }
+
+            return $"{step.Id} | Type | {Truncate(step.Text)}";
         }
 
         private static string FormatClick(ScriptStep step)

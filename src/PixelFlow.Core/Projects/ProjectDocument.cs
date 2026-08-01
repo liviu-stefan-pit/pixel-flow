@@ -50,8 +50,15 @@ public sealed class ScriptStep
 
     public LocatorChain? Locator { get; set; }
 
-    /// <summary>Text payload for Type steps.</summary>
+    /// <summary>Text payload for Type steps (plaintext; prefer <see cref="SecretRef"/> for credentials).</summary>
     public string? Text { get; set; }
+
+    /// <summary>
+    /// P30: Windows Credential Manager target name for Type steps. The secret value is resolved
+    /// at runtime only and must never be written to <c>project.json</c> or run reports.
+    /// When set, takes precedence over <see cref="Text"/>.
+    /// </summary>
+    public string? SecretRef { get; set; }
 
     /// <summary>Duration for Wait steps, in milliseconds.</summary>
     public int? WaitMs { get; set; }

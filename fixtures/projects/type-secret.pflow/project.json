@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "name": "type-secret",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 5000,
+    "retry": {
+      "maxAttempts": 3,
+      "backoffMs": 250
+    }
+  },
+  "steps": [
+    {
+      "id": "type-secret",
+      "type": "Type",
+      "timeoutMs": 5000,
+      "retry": {
+        "maxAttempts": 3,
+        "backoffMs": 250
+      },
+      "secretRef": "PixelFlow/TestSecret",
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbInput",
+            "controlType": "Edit",
+            "name": "Input"
+          }
+        ]
+      }
+    }
+  ]
+}

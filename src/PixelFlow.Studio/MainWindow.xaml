@@ -6,56 +6,60 @@
         Width="1100"
         MinHeight="560"
         MinWidth="900">
-    <DockPanel Margin="12">
+    <DockPanel Margin="14">
         <TextBlock DockPanel.Dock="Top"
-                   Text="PixelFlow Studio"
-                   FontSize="20"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,4" />
+                   Text="PixelFlow"
+                   Style="{StaticResource PfBrandTitle}" />
 
         <TextBlock DockPanel.Dock="Top"
-                   TextWrapping="Wrap"
-                   Opacity="0.85"
-                   FontSize="12"
-                   Margin="0,0,0,8"
+                   Style="{StaticResource PfMutedText}"
+                   Margin="0,0,0,10"
                    Text="Edit steps in the list, Save through ProjectStore, then Run. Snip inserts an image token on the selected Click step. Last report opens the latest JSONL summary. Emergency stop: Ctrl+Shift+F12." />
 
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-            <Button x:Name="OpenButton" Content="Open…" Width="72" Margin="0,0,6,0" Click="OnOpenClick"
-                    AutomationProperties.AutomationId="StudioOpen" />
-            <Button x:Name="SaveButton" Content="Save" Width="64" Margin="0,0,6,0" Click="OnSaveClick"
-                    AutomationProperties.AutomationId="StudioSave" />
-            <Button x:Name="NewButton" Content="New" Width="56" Margin="0,0,12,0" Click="OnNewClick"
-                    AutomationProperties.AutomationId="StudioNew" />
-            <Button x:Name="SnipButton" Content="Snip" Width="64" Margin="0,0,12,0" Click="OnSnipClick"
-                    AutomationProperties.AutomationId="StudioSnip" ToolTip="Capture a screen region into project assets/" />
-            <Button x:Name="RunButton" Content="Run" Width="72" Margin="0,0,6,0" Click="OnRunClick"
-                    AutomationProperties.AutomationId="StudioRun" />
-            <Button x:Name="PauseButton" Content="Pause" Width="72" Margin="0,0,6,0" Click="OnPauseClick" IsEnabled="False" />
-            <Button x:Name="ResumeButton" Content="Resume" Width="72" Margin="0,0,6,0" Click="OnResumeClick" IsEnabled="False" />
-            <Button x:Name="StopButton" Content="Stop" Width="72" Margin="0,0,12,0" Click="OnStopClick" IsEnabled="False" />
-            <Button x:Name="LastReportButton" Content="Last report" Width="88" Margin="0,0,12,0" Click="OnLastReportClick"
-                    AutomationProperties.AutomationId="StudioLastReport"
-                    ToolTip="Open the latest run report summary from reports/" />
-            <CheckBox x:Name="InspectorToggle"
-                      Content="UIA Inspector"
-                      VerticalAlignment="Center"
-                      Checked="OnInspectorChecked"
-                      Unchecked="OnInspectorUnchecked" />
-        </StackPanel>
+        <Border DockPanel.Dock="Top"
+                Style="{StaticResource PfPanelBorder}"
+                Margin="0,0,0,10"
+                Padding="8,8">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="OpenButton" Content="Open…" Width="72" Margin="0,0,6,0" Click="OnOpenClick"
+                        AutomationProperties.AutomationId="StudioOpen" />
+                <Button x:Name="SaveButton" Content="Save" Width="64" Margin="0,0,6,0" Click="OnSaveClick"
+                        AutomationProperties.AutomationId="StudioSave" />
+                <Button x:Name="NewButton" Content="New" Width="56" Margin="0,0,12,0" Click="OnNewClick"
+                        AutomationProperties.AutomationId="StudioNew" />
+                <Button x:Name="SnipButton" Content="Snip" Width="64" Margin="0,0,12,0" Click="OnSnipClick"
+                        Style="{StaticResource PfWarmButton}"
+                        AutomationProperties.AutomationId="StudioSnip" ToolTip="Capture a screen region into project assets/" />
+                <Button x:Name="RunButton" Content="Run" Width="72" Margin="0,0,6,0" Click="OnRunClick"
+                        Style="{StaticResource PfAccentButton}"
+                        AutomationProperties.AutomationId="StudioRun" />
+                <Button x:Name="PauseButton" Content="Pause" Width="72" Margin="0,0,6,0" Click="OnPauseClick" IsEnabled="False" />
+                <Button x:Name="ResumeButton" Content="Resume" Width="72" Margin="0,0,6,0" Click="OnResumeClick" IsEnabled="False" />
+                <Button x:Name="StopButton" Content="Stop" Width="72" Margin="0,0,12,0" Click="OnStopClick" IsEnabled="False" />
+                <Button x:Name="LastReportButton" Content="Last report" Width="88" Margin="0,0,12,0" Click="OnLastReportClick"
+                        AutomationProperties.AutomationId="StudioLastReport"
+                        ToolTip="Open the latest run report summary from reports/" />
+                <CheckBox x:Name="InspectorToggle"
+                          Content="UIA Inspector"
+                          VerticalAlignment="Center"
+                          Checked="OnInspectorChecked"
+                          Unchecked="OnInspectorUnchecked" />
+            </StackPanel>
+        </Border>
 
         <TextBlock x:Name="StatusText"
                    DockPanel.Dock="Top"
                    Text="Runner: Disconnected — click Run"
+                   FontWeight="SemiBold"
+                   Foreground="{StaticResource PfAccentDeepBrush}"
                    TextWrapping="Wrap"
                    Margin="0,0,0,2" />
 
         <TextBlock x:Name="ProjectPathText"
                    DockPanel.Dock="Top"
+                   Style="{StaticResource PfMutedText}"
                    FontSize="11"
-                   Opacity="0.75"
-                   TextWrapping="Wrap"
-                   Margin="0,0,0,8" />
+                   Margin="0,0,0,10" />
 
         <Grid>
             <Grid.ColumnDefinitions>
@@ -67,26 +71,217 @@
             </Grid.ColumnDefinitions>
 
             <!-- Script editor -->
-            <DockPanel Grid.Column="0">
-                <TextBlock DockPanel.Dock="Top" Text="Script steps" FontWeight="SemiBold" Margin="0,0,0,4" />
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4">
-                    <Button Content="+ Wait" Width="60" Margin="0,0,4,0" Click="OnAddWaitClick"
-                            AutomationProperties.AutomationId="StudioAddWait" />
-                    <Button Content="+ Click" Width="60" Margin="0,0,4,0" Click="OnAddClickClick"
-                            AutomationProperties.AutomationId="StudioAddClick" />
-                    <Button Content="+ Type" Width="60" Margin="0,0,8,0" Click="OnAddTypeClick"
-                            AutomationProperties.AutomationId="StudioAddType" />
-                    <Button Content="↑" Width="28" Margin="0,0,4,0" Click="OnMoveUpClick" ToolTip="Move up" />
-                    <Button Content="↓" Width="28" Margin="0,0,4,0" Click="OnMoveDownClick" ToolTip="Move down" />
-                    <Button Content="Remove" Width="64" Click="OnRemoveStepClick"
-                            AutomationProperties.AutomationId="StudioRemoveStep" />
-                </StackPanel>
+            <Border Grid.Column="0" Style="{StaticResource PfPanelBorder}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Script steps" Style="{StaticResource PfSectionTitle}" />
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="+ Wait" Width="60" Margin="0,0,4,0" Click="OnAddWaitClick"
+                                AutomationProperties.AutomationId="StudioAddWait" />
+                        <Button Content="+ Click" Width="60" Margin="0,0,4,0" Click="OnAddClickClick"
+                                AutomationProperties.AutomationId="StudioAddClick" />
+                        <Button Content="+ Type" Width="60" Margin="0,0,8,0" Click="OnAddTypeClick"
+                                AutomationProperties.AutomationId="StudioAddType" />
+                        <Button Content="↑" Width="28" Margin="0,0,4,0" Click="OnMoveUpClick" ToolTip="Move up" />
+                        <Button Content="↓" Width="28" Margin="0,0,4,0" Click="OnMoveDownClick" ToolTip="Move down" />
+                        <Button Content="Remove" Width="64" Click="OnRemoveStepClick"
+                                AutomationProperties.AutomationId="StudioRemoveStep" />
+                    </StackPanel>
 
-                <GroupBox Header="Step details" DockPanel.Dock="Bottom" Margin="0,8,0,0" Padding="6">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="280">
-                        <Grid>
+                    <GroupBox Header="Step details" DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="280">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="88" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Id" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepIdBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepId" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Type" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <ComboBox x:Name="StepTypeBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,4"
+                                          SelectionChanged="OnStepTypeChanged" AutomationProperties.AutomationId="StudioStepType">
+                                    <ComboBoxItem Content="Wait" />
+                                    <ComboBoxItem Content="Click" />
+                                    <ComboBoxItem Content="Type" />
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="WaitMs" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepWaitMsBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepWaitMs" />
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Text" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepText" />
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="SecretRef" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepSecretRefBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged"
+                                         ToolTip="Windows Credential Manager target name (Type steps). Value never saved to project.json."
+                                         AutomationProperties.AutomationId="StudioStepSecretRef" />
+
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="Process" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepProcessBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged" />
+
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="Window" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepWindowBox" Grid.Row="6" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged" />
+
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="AutomationId" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepAutomationIdBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged" />
+
+                                <TextBlock Grid.Row="8" Grid.Column="0" Text="ControlType" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepControlTypeBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged" />
+
+                                <TextBlock Grid.Row="9" Grid.Column="0" Text="Name" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <TextBox x:Name="StepNameBox" Grid.Row="9" Grid.Column="1" Margin="0,0,0,4"
+                                         LostFocus="OnStepDetailChanged" />
+
+                                <TextBlock Grid.Row="10" Grid.Column="0" Text="Image" VerticalAlignment="Top" Margin="0,4,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                                <Border x:Name="StepImageTokenBorder"
+                                        Grid.Row="10" Grid.Column="1"
+                                        Margin="0,0,0,4"
+                                        Padding="6"
+                                        BorderBrush="{StaticResource PfLineBrush}"
+                                        BorderThickness="1"
+                                        Background="{StaticResource PfAccentWashBrush}"
+                                        CornerRadius="8"
+                                        ToolTip="Inline image token bound to the Click step Image locator asset (Snip to insert).">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Border Width="56" Height="56"
+                                                BorderBrush="{StaticResource PfLineBrush}"
+                                                BorderThickness="1"
+                                                Background="{StaticResource PfPanelBrush}"
+                                                CornerRadius="6">
+                                            <Grid>
+                                                <TextBlock x:Name="StepImageTokenPlaceholder"
+                                                           Text="(none)"
+                                                           FontSize="10"
+                                                           Foreground="{StaticResource PfMutedBrush}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" />
+                                                <Image x:Name="StepImageTokenImage"
+                                                       Stretch="Uniform"
+                                                       MaxWidth="54"
+                                                       MaxHeight="54"
+                                                       AutomationProperties.AutomationId="StudioImageToken" />
+                                            </Grid>
+                                        </Border>
+                                        <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
+                                            <TextBox x:Name="StepImageHashBox"
+                                                     IsReadOnly="True"
+                                                     FontFamily="Cascadia Mono, Consolas"
+                                                     FontSize="10"
+                                                     MinWidth="120"
+                                                     MaxWidth="200"
+                                                     TextWrapping="Wrap"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     AutomationProperties.AutomationId="StudioStepImageHash" />
+                                            <Button x:Name="ClearImageTokenButton"
+                                                    Content="Clear image"
+                                                    HorizontalAlignment="Left"
+                                                    Margin="0,4,0,0"
+                                                    Padding="8,2"
+                                                    Click="OnClearImageTokenClick"
+                                                    AutomationProperties.AutomationId="StudioClearImageToken"
+                                                    ToolTip="Remove the Image locator layer from this Click step" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <CheckBox x:Name="StepCaptureFailureScreenshotBox"
+                                          Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2"
+                                          Content="Capture failure screenshot (opt-in)"
+                                          Margin="0,4,0,4"
+                                          Checked="OnStepDetailChanged"
+                                          Unchecked="OnStepDetailChanged"
+                                          AutomationProperties.AutomationId="StudioCaptureFailureScreenshot"
+                                          ToolTip="When checked, a PNG is stored with the run report if this step fails. Default off. Forced off for SecretRef steps." />
+
+                                <TextBlock Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2"
+                                           Style="{StaticResource PfMutedText}"
+                                           FontSize="10"
+                                           Margin="0,0,0,2"
+                                           Text="Snip while a Click step is selected to insert the thumbnail token. SecretRef = Credential Manager name (never stored as plaintext)." />
+                            </Grid>
+                        </ScrollViewer>
+                    </GroupBox>
+
+                    <ListBox x:Name="StepsList"
+                             SelectionChanged="OnStepsSelectionChanged"
+                             AutomationProperties.AutomationId="StudioStepsList">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,1">
+                                    <Border Width="22" Height="22" Margin="0,0,6,0"
+                                            BorderBrush="{StaticResource PfLineBrush}"
+                                            BorderThickness="1"
+                                            Background="{StaticResource PfPanelBrush}"
+                                            CornerRadius="4"
+                                            Visibility="{Binding ThumbnailVisibility}">
+                                        <Image Source="{Binding Thumbnail}" Stretch="Uniform" />
+                                    </Border>
+                                    <TextBlock Text="{Binding Display}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="1" />
+
+            <!-- Log -->
+            <Border Grid.Column="2" Style="{StaticResource PfPanelBorder}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Log" Style="{StaticResource PfSectionTitle}" />
+                    <TextBox x:Name="LogBox"
+                             Style="{StaticResource PfCodeBox}"
+                             IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             FontSize="12"
+                             AcceptsReturn="True"
+                             TextWrapping="NoWrap"
+                             AutomationProperties.AutomationId="StudioLog" />
+                </DockPanel>
+            </Border>
+
+            <GridSplitter Grid.Column="3" />
+
+            <!-- Locator tools -->
+            <Border Grid.Column="4" Style="{StaticResource PfPanelBorder}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="Test locator" Style="{StaticResource PfSectionTitle}" />
+                        <TextBlock Style="{StaticResource PfMutedText}"
+                                   FontSize="11"
+                                   Margin="0,0,0,8"
+                                   Text="Validate AutomationId against the live desktop before running." />
+
+                        <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="88" />
+                                <ColumnDefinition Width="90" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Grid.RowDefinitions>
@@ -95,267 +290,88 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Id" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepIdBox" Grid.Row="0" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepId" />
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Process" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                            <TextBox x:Name="LocatorProcessBox"
+                                     Grid.Row="0" Grid.Column="1"
+                                     Text="PixelFlow.TestBench"
+                                     Margin="0,0,0,4" />
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Type" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <ComboBox x:Name="StepTypeBox" Grid.Row="1" Grid.Column="1" Margin="0,0,0,4"
-                                      SelectionChanged="OnStepTypeChanged" AutomationProperties.AutomationId="StudioStepType">
-                                <ComboBoxItem Content="Wait" />
-                                <ComboBoxItem Content="Click" />
-                                <ComboBoxItem Content="Type" />
-                            </ComboBox>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Window" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                            <TextBox x:Name="LocatorWindowBox"
+                                     Grid.Row="1" Grid.Column="1"
+                                     Text="Test Bench"
+                                     Margin="0,0,0,4" />
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="WaitMs" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepWaitMsBox" Grid.Row="2" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepWaitMs" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="AutomationId" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                            <TextBox x:Name="LocatorAutomationIdBox"
+                                     Grid.Row="2" Grid.Column="1"
+                                     Text="TbSubmit"
+                                     Margin="0,0,0,4" />
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Text" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepTextBox" Grid.Row="3" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged" AutomationProperties.AutomationId="StudioStepText" />
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="ControlType" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                            <TextBox x:Name="LocatorControlTypeBox"
+                                     Grid.Row="3" Grid.Column="1"
+                                     Text="Button"
+                                     Margin="0,0,0,4" />
 
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="SecretRef" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepSecretRefBox" Grid.Row="4" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged"
-                                     ToolTip="Windows Credential Manager target name (Type steps). Value never saved to project.json."
-                                     AutomationProperties.AutomationId="StudioStepSecretRef" />
-
-                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Process" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepProcessBox" Grid.Row="5" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged" />
-
-                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Window" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepWindowBox" Grid.Row="6" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged" />
-
-                            <TextBlock Grid.Row="7" Grid.Column="0" Text="AutomationId" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepAutomationIdBox" Grid.Row="7" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged" />
-
-                            <TextBlock Grid.Row="8" Grid.Column="0" Text="ControlType" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepControlTypeBox" Grid.Row="8" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged" />
-
-                            <TextBlock Grid.Row="9" Grid.Column="0" Text="Name" VerticalAlignment="Center" Margin="0,0,0,4" />
-                            <TextBox x:Name="StepNameBox" Grid.Row="9" Grid.Column="1" Margin="0,0,0,4"
-                                     LostFocus="OnStepDetailChanged" />
-
-                            <TextBlock Grid.Row="10" Grid.Column="0" Text="Image" VerticalAlignment="Top" Margin="0,4,0,4" />
-                            <Border x:Name="StepImageTokenBorder"
-                                    Grid.Row="10" Grid.Column="1"
-                                    Margin="0,0,0,4"
-                                    Padding="4"
-                                    BorderBrush="#FF888888"
-                                    BorderThickness="1"
-                                    Background="#FFF7F7F7"
-                                    ToolTip="Inline image token bound to the Click step Image locator asset (Snip to insert).">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Width="56" Height="56" BorderBrush="#FFAAAAAA" BorderThickness="1" Background="White">
-                                        <Grid>
-                                            <TextBlock x:Name="StepImageTokenPlaceholder"
-                                                       Text="(none)"
-                                                       FontSize="10"
-                                                       Opacity="0.55"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" />
-                                            <Image x:Name="StepImageTokenImage"
-                                                   Stretch="Uniform"
-                                                   MaxWidth="54"
-                                                   MaxHeight="54"
-                                                   AutomationProperties.AutomationId="StudioImageToken" />
-                                        </Grid>
-                                    </Border>
-                                    <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
-                                        <TextBox x:Name="StepImageHashBox"
-                                                 IsReadOnly="True"
-                                                 FontFamily="Consolas"
-                                                 FontSize="10"
-                                                 MinWidth="120"
-                                                 MaxWidth="200"
-                                                 TextWrapping="Wrap"
-                                                 BorderThickness="0"
-                                                 Background="Transparent"
-                                                 AutomationProperties.AutomationId="StudioStepImageHash" />
-                                        <Button x:Name="ClearImageTokenButton"
-                                                Content="Clear image"
-                                                HorizontalAlignment="Left"
-                                                Margin="0,4,0,0"
-                                                Padding="8,2"
-                                                Click="OnClearImageTokenClick"
-                                                AutomationProperties.AutomationId="StudioClearImageToken"
-                                                ToolTip="Remove the Image locator layer from this Click step" />
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-
-                            <CheckBox x:Name="StepCaptureFailureScreenshotBox"
-                                      Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2"
-                                      Content="Capture failure screenshot (opt-in)"
-                                      Margin="0,4,0,4"
-                                      Checked="OnStepDetailChanged"
-                                      Unchecked="OnStepDetailChanged"
-                                      AutomationProperties.AutomationId="StudioCaptureFailureScreenshot"
-                                      ToolTip="When checked, a PNG is stored with the run report if this step fails. Default off. Forced off for SecretRef steps." />
-
-                            <TextBlock Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2"
-                                       TextWrapping="Wrap"
-                                       FontSize="10"
-                                       Opacity="0.7"
-                                       Margin="0,0,0,2"
-                                       Text="Snip while a Click step is selected to insert the thumbnail token. SecretRef = Credential Manager name (never stored as plaintext)." />
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Name" VerticalAlignment="Center" Margin="0,0,0,4" Foreground="{StaticResource PfMutedBrush}" />
+                            <TextBox x:Name="LocatorNameBox"
+                                     Grid.Row="4" Grid.Column="1"
+                                     Text="Submit"
+                                     Margin="0,0,0,4" />
                         </Grid>
-                    </ScrollViewer>
-                </GroupBox>
 
-                <ListBox x:Name="StepsList"
-                         SelectionChanged="OnStepsSelectionChanged"
-                         AutomationProperties.AutomationId="StudioStepsList">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Margin="0,1">
-                                <Border Width="22" Height="22" Margin="0,0,6,0"
-                                        BorderBrush="#FFAAAAAA" BorderThickness="1" Background="White"
-                                        Visibility="{Binding ThumbnailVisibility}">
-                                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" />
-                                </Border>
-                                <TextBlock Text="{Binding Display}" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </DockPanel>
+                        <Button x:Name="TestLocatorButton"
+                                Content="Test locator"
+                                Style="{StaticResource PfAccentButton}"
+                                HorizontalAlignment="Left"
+                                Padding="12,4"
+                                Margin="0,0,0,8"
+                                Click="OnTestLocatorClick" />
 
-            <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" />
+                        <TextBox x:Name="LocatorTestResultBox"
+                                 Style="{StaticResource PfCodeBox}"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 MinHeight="48"
+                                 MaxHeight="100"
+                                 VerticalScrollBarVisibility="Auto"
+                                 FontSize="12"
+                                 Margin="0,0,0,16"
+                                 Text="Result appears here after Test." />
 
-            <!-- Log -->
-            <DockPanel Grid.Column="2">
-                <TextBlock DockPanel.Dock="Top" Text="Log" FontWeight="SemiBold" Margin="0,0,0,4" />
-                <TextBox x:Name="LogBox"
-                         IsReadOnly="True"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Auto"
-                         FontFamily="Consolas"
-                         FontSize="12"
-                         AcceptsReturn="True"
-                         TextWrapping="NoWrap"
-                         AutomationProperties.AutomationId="StudioLog" />
-            </DockPanel>
+                        <TextBlock Text="Last snip" Style="{StaticResource PfSectionTitle}" />
+                        <TextBox x:Name="LastSnipBox"
+                                 Style="{StaticResource PfCodeBox}"
+                                 IsReadOnly="True"
+                                 TextWrapping="Wrap"
+                                 FontSize="11"
+                                 MinHeight="40"
+                                 Margin="0,0,0,16"
+                                 Text="No snip yet."
+                                 AutomationProperties.AutomationId="StudioLastSnip" />
 
-            <GridSplitter Grid.Column="3" Width="8" HorizontalAlignment="Stretch" />
-
-            <!-- Locator tools -->
-            <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto">
-                <StackPanel>
-                    <TextBlock Text="Test locator" FontWeight="SemiBold" Margin="0,0,0,4" />
-                    <TextBlock TextWrapping="Wrap"
-                               Opacity="0.75"
-                               FontSize="11"
-                               Margin="0,0,0,8"
-                               Text="Validate AutomationId against the live desktop before running." />
-
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="90" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Process" VerticalAlignment="Center" Margin="0,0,0,4" />
-                        <TextBox x:Name="LocatorProcessBox"
-                                 Grid.Row="0" Grid.Column="1"
-                                 Text="PixelFlow.TestBench"
-                                 Margin="0,0,0,4" />
-
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Window" VerticalAlignment="Center" Margin="0,0,0,4" />
-                        <TextBox x:Name="LocatorWindowBox"
-                                 Grid.Row="1" Grid.Column="1"
-                                 Text="Test Bench"
-                                 Margin="0,0,0,4" />
-
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="AutomationId" VerticalAlignment="Center" Margin="0,0,0,4" />
-                        <TextBox x:Name="LocatorAutomationIdBox"
-                                 Grid.Row="2" Grid.Column="1"
-                                 Text="TbSubmit"
-                                 Margin="0,0,0,4" />
-
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="ControlType" VerticalAlignment="Center" Margin="0,0,0,4" />
-                        <TextBox x:Name="LocatorControlTypeBox"
-                                 Grid.Row="3" Grid.Column="1"
-                                 Text="Button"
-                                 Margin="0,0,0,4" />
-
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Name" VerticalAlignment="Center" Margin="0,0,0,4" />
-                        <TextBox x:Name="LocatorNameBox"
-                                 Grid.Row="4" Grid.Column="1"
-                                 Text="Submit"
-                                 Margin="0,0,0,4" />
-                    </Grid>
-
-                    <Button x:Name="TestLocatorButton"
-                            Content="Test locator"
-                            HorizontalAlignment="Left"
-                            Padding="12,4"
-                            Margin="0,0,0,8"
-                            Click="OnTestLocatorClick" />
-
-                    <TextBox x:Name="LocatorTestResultBox"
-                             IsReadOnly="True"
-                             TextWrapping="Wrap"
-                             AcceptsReturn="True"
-                             MinHeight="48"
-                             MaxHeight="100"
-                             VerticalScrollBarVisibility="Auto"
-                             FontFamily="Consolas"
-                             FontSize="12"
-                             Margin="0,0,0,16"
-                             Text="Result appears here after Test." />
-
-                    <TextBlock Text="Last snip" FontWeight="SemiBold" Margin="0,0,0,4" />
-                    <TextBox x:Name="LastSnipBox"
-                             IsReadOnly="True"
-                             TextWrapping="Wrap"
-                             FontFamily="Consolas"
-                             FontSize="11"
-                             MinHeight="40"
-                             Margin="0,0,0,16"
-                             Text="No snip yet."
-                             AutomationProperties.AutomationId="StudioLastSnip" />
-
-                    <TextBlock Text="UIA Inspector" FontWeight="SemiBold" Margin="0,0,0,4" />
-                    <TextBlock TextWrapping="Wrap"
-                               Opacity="0.75"
-                               FontSize="11"
-                               Margin="0,0,0,6"
-                               Text="Enable UIA Inspector, hover an element, copy fields into step details or Test locator." />
-                    <TextBox x:Name="InspectorBox"
-                             IsReadOnly="True"
-                             MinHeight="140"
-                             VerticalScrollBarVisibility="Auto"
-                             HorizontalScrollBarVisibility="Auto"
-                             FontFamily="Consolas"
-                             FontSize="12"
-                             AcceptsReturn="True"
-                             TextWrapping="NoWrap"
-                             Text="Inspector off — enable the checkbox above." />
-                </StackPanel>
-            </ScrollViewer>
+                        <TextBlock Text="UIA Inspector" Style="{StaticResource PfSectionTitle}" />
+                        <TextBlock Style="{StaticResource PfMutedText}"
+                                   FontSize="11"
+                                   Margin="0,0,0,6"
+                                   Text="Enable UIA Inspector, hover an element, copy fields into step details or Test locator." />
+                        <TextBox x:Name="InspectorBox"
+                                 Style="{StaticResource PfCodeBox}"
+                                 IsReadOnly="True"
+                                 MinHeight="140"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 FontSize="12"
+                                 AcceptsReturn="True"
+                                 TextWrapping="NoWrap"
+                                 Text="Inspector off — enable the checkbox above." />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
         </Grid>
     </DockPanel>
 </Window>

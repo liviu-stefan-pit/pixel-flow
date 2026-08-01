@@ -4,6 +4,333 @@
              xmlns:local="clr-namespace:PixelFlow.Studio"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <!-- Palette mirrored from docs/user-guide.html -->
+        <Color x:Key="PfInk">#FF1A211C</Color>
+        <Color x:Key="PfMuted">#FF4A564F</Color>
+        <Color x:Key="PfPaper">#FFF3EFE6</Color>
+        <Color x:Key="PfPanel">#FFFFFDF8</Color>
+        <Color x:Key="PfLine">#FFD4CDC0</Color>
+        <Color x:Key="PfAccent">#FF0F6B5C</Color>
+        <Color x:Key="PfAccentDeep">#FF0A473E</Color>
+        <Color x:Key="PfWarm">#FFC45C26</Color>
+        <Color x:Key="PfCodeBg">#FF1E2622</Color>
+        <Color x:Key="PfCodeFg">#FFE8EFE9</Color>
+        <Color x:Key="PfOk">#FF1F7A4C</Color>
+        <Color x:Key="PfSoftMint">#FFDFECE6</Color>
+        <Color x:Key="PfSoftWarm">#FFF0E2D2</Color>
+        <Color x:Key="PfAccentWash">#FFE7F3EE</Color>
+        <Color x:Key="PfHeaderEnd">#FFEBE4D6</Color>
+
+        <SolidColorBrush x:Key="PfInkBrush" Color="{StaticResource PfInk}" />
+        <SolidColorBrush x:Key="PfMutedBrush" Color="{StaticResource PfMuted}" />
+        <SolidColorBrush x:Key="PfPaperBrush" Color="{StaticResource PfPaper}" />
+        <SolidColorBrush x:Key="PfPanelBrush" Color="{StaticResource PfPanel}" />
+        <SolidColorBrush x:Key="PfLineBrush" Color="{StaticResource PfLine}" />
+        <SolidColorBrush x:Key="PfAccentBrush" Color="{StaticResource PfAccent}" />
+        <SolidColorBrush x:Key="PfAccentDeepBrush" Color="{StaticResource PfAccentDeep}" />
+        <SolidColorBrush x:Key="PfWarmBrush" Color="{StaticResource PfWarm}" />
+        <SolidColorBrush x:Key="PfCodeBgBrush" Color="{StaticResource PfCodeBg}" />
+        <SolidColorBrush x:Key="PfCodeFgBrush" Color="{StaticResource PfCodeFg}" />
+        <SolidColorBrush x:Key="PfOkBrush" Color="{StaticResource PfOk}" />
+        <SolidColorBrush x:Key="PfAccentWashBrush" Color="{StaticResource PfAccentWash}" />
+        <SolidColorBrush x:Key="PfSoftMintBrush" Color="{StaticResource PfSoftMint}" />
+
+        <LinearGradientBrush x:Key="PfWindowBackground" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="{StaticResource PfSoftMint}" Offset="0" />
+            <GradientStop Color="{StaticResource PfPaper}" Offset="0.45" />
+            <GradientStop Color="{StaticResource PfSoftWarm}" Offset="1" />
+        </LinearGradientBrush>
+
+        <Style TargetType="Window">
+            <Setter Property="Background" Value="{StaticResource PfWindowBackground}" />
+            <Setter Property="Foreground" Value="{StaticResource PfInkBrush}" />
+            <Setter Property="FontFamily" Value="Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        </Style>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource PfInkBrush}" />
+        </Style>
+
+        <Style x:Key="PfBrandTitle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia, Cambria, Times New Roman, serif" />
+            <Setter Property="FontSize" Value="26" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource PfAccentDeepBrush}" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+
+        <Style x:Key="PfSectionTitle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Georgia, Cambria, Times New Roman, serif" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource PfAccentDeepBrush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style x:Key="PfMutedText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource PfMutedBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style x:Key="PfPanelBorder" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource PfPanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PfLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource PfInkBrush}" />
+            <Setter Property="Background" Value="{StaticResource PfPanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PfLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource PfAccentWashBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PfAccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource PfSoftMintBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource PfAccentDeepBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PfAccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{StaticResource PfAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PfAccentDeepBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource PfAccentDeepBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource PfWarmBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PfWarmBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PfWarmButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{StaticResource PfWarmBrush}" />
+            <Setter Property="BorderBrush" Value="#FF9A4518" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="7"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FFA84B1A" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FF8A3D12" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource PfPanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource PfInkBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PfLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="CaretBrush" Value="{StaticResource PfAccentBrush}" />
+            <Setter Property="SelectionBrush" Value="{StaticResource PfAccentBrush}" />
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource PfAccentBrush}" />
+                </Trigger>
+                <Trigger Property="IsReadOnly" Value="True">
+                    <Setter Property="Background" Value="#FFF7F3EA" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PfCodeBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Background" Value="{StaticResource PfCodeBgBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource PfCodeFgBrush}" />
+            <Setter Property="BorderBrush" Value="#FF2C3832" />
+            <Setter Property="CaretBrush" Value="{StaticResource PfCodeFgBrush}" />
+            <Setter Property="SelectionBrush" Value="{StaticResource PfAccentBrush}" />
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource PfAccentBrush}" />
+                </Trigger>
+                <Trigger Property="IsReadOnly" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PfCodeBgBrush}" />
+                    <Setter Property="Foreground" Value="{StaticResource PfCodeFgBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="{StaticResource PfPanelBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource PfInkBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PfLineBrush}" />
+            <Setter Property="Padding" Value="4,3" />
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource PfInkBrush}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="{StaticResource PfPanelBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PfLineBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="2" />
+            <Setter Property="Foreground" Value="{StaticResource PfInkBrush}" />
+        </Style>
+
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Margin" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd"
+                                Background="Transparent"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource PfAccentWashBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource PfAccentWashBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource PfAccentDeepBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="GroupBox">
+            <Setter Property="Foreground" Value="{StaticResource PfAccentDeepBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource PfLineBrush}" />
+            <Setter Property="Background" Value="{StaticResource PfPanelBrush}" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="GroupBox">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Grid.RowSpan="2"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Margin="0,8,0,0" />
+                            <Border Grid.Row="0"
+                                    Background="{StaticResource PfAccentWashBrush}"
+                                    BorderBrush="{StaticResource PfLineBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,2"
+                                    Margin="10,0,0,0"
+                                    HorizontalAlignment="Left"
+                                    Panel.ZIndex="1">
+                                <ContentPresenter ContentSource="Header"
+                                                  RecognizesAccessKey="True"
+                                                  TextElement.FontFamily="Georgia, Cambria, Times New Roman, serif"
+                                                  TextElement.FontWeight="SemiBold"
+                                                  TextElement.Foreground="{StaticResource PfAccentDeepBrush}" />
+                            </Border>
+                            <ContentPresenter Grid.Row="1"
+                                              Margin="{TemplateBinding Padding}"
+                                              />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="GridSplitter">
+            <Setter Property="Background" Value="{StaticResource PfLineBrush}" />
+            <Setter Property="Width" Value="4" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Stretch" />
+        </Style>
+
+        <Style TargetType="ScrollViewer">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
     </Application.Resources>
 </Application>

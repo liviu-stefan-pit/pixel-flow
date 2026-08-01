@@ -60,6 +60,15 @@ internal static class NativeMethods
     [DllImport("user32.dll")]
     public static extern int GetSystemMetrics(int nIndex);
 
+    [DllImport("user32.dll")]
+    public static extern bool GetCursorPos(out Point lpPoint);
+
+    [DllImport("user32.dll")]
+    public static extern bool GetLastInputInfo(ref LastInputInfo plii);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetTickCount();
+
     [DllImport("gdi32.dll")]
     public static extern bool BitBlt(
         IntPtr hdcDest,
@@ -102,6 +111,20 @@ internal static class NativeMethods
         public int Top;
         public int Right;
         public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Point
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LastInputInfo
+    {
+        public uint CbSize;
+        public uint DwTime;
     }
 
     [StructLayout(LayoutKind.Sequential)]

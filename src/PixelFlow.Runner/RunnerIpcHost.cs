@@ -209,12 +209,14 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
         await SendLogAsync("info", $"Run report: {reporter.ReportDirectory}").ConfigureAwait(false);
 
         var live = new LiveStepServices(projectFolder);
+        var interference = new Win32UserInterferenceDetector();
         _engine = new RunnerEngine(
             live,
             live,
             live,
             reporter: reporter,
-            screenshotCapture: new PrimaryScreenFailureCapture());
+            screenshotCapture: new PrimaryScreenFailureCapture(),
+            interferenceDetector: interference);
         _engine.RequestResume();
         _engine.StateChanged += OnEngineStateChanged;
 
@@ -270,10 +272,22 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
         Console.WriteLine($"[runner] State -> {state}");
         if (state == RunnerState.Paused)
         {
-            Console.WriteLine("[runner] PAUSED between steps — Resume to continue, Stop to abort (still an active run)");
-            _ = SendLogAsync(
-                "info",
-                "PAUSED between steps. Run is still active — click Resume to continue or Stop to abort.");
+            var reason = _engine?.ActivePauseReason;
+            if (string.Equals(reason, PauseReasons.UserInterference, StringComparison.Ordinal))
+            {
+                Console.WriteLine(
+                    "[runner] PAUSED — user interference (mouse/keyboard) before input; Resume when ready");
+                _ = SendLogAsync(
+                    "warning",
+                    "PAUSED: user interference detected (mouse/keyboard activity). No click was sent. Resume when ready, or Stop to abort.");
+            }
+            else
+            {
+                Console.WriteLine("[runner] PAUSED between steps — Resume to continue, Stop to abort (still an active run)");
+                _ = SendLogAsync(
+                    "info",
+                    "PAUSED between steps. Run is still active — click Resume to continue or Stop to abort.");
+            }
         }
         else if (state == RunnerState.FailedStep)
         {

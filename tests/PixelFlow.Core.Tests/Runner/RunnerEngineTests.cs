@@ -137,6 +137,100 @@ public sealed class RunnerEngineTests
     }
 
     [Fact]
+    public async Task UserInterference_BeforeClick_PausesWithoutExecuting_ThenResumeSucceeds()
+    {
+        var interference = new MockInterferenceDetector { Interfering = true };
+        var delay = new ControllableDelay();
+        var executor = new MockExecutor();
+        var engine = new RunnerEngine(
+            new MockResolver(_ => new ResolveResult(true, "el")),
+            new MockVerifier(true, true),
+            executor,
+            delay,
+            interferenceDetector: interference);
+
+        var runTask = engine.RunAsync(OneClickProject(maxAttempts: 1));
+
+        await WaitForStateAsync(engine, RunnerState.Paused, TimeSpan.FromSeconds(5), delay);
+        Assert.Equal(PauseReasons.UserInterference, engine.ActivePauseReason);
+        Assert.Equal(0, executor.ExecuteCount);
+        Assert.True(interference.BeginGateCount >= 1);
+        Assert.DoesNotContain(RunnerState.Executing, engine.TransitionLog);
+
+        interference.Interfering = false;
+        engine.RequestResume();
+        delay.ReleaseAll();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(RunnerState.Idle, engine.State);
+        Assert.Equal(1, executor.ExecuteCount);
+        Assert.Contains(RunnerState.Paused, engine.TransitionLog);
+        Assert.Contains(RunnerState.Executing, engine.TransitionLog);
+        Assert.True(interference.NoteSyntheticCount >= 2); // run-start baseline + post-execute
+    }
+
+    [Fact]
+    public async Task UserInterference_DoesNotConsumeRetryAttempt()
+    {
+        var interference = new MockInterferenceDetector { Interfering = true };
+        var delay = new ControllableDelay();
+        var resolver = new MockResolver(_ => new ResolveResult(true, "el"));
+        var executor = new MockExecutor();
+        var engine = new RunnerEngine(
+            resolver,
+            new MockVerifier(true, true),
+            executor,
+            delay,
+            interferenceDetector: interference);
+
+        var runTask = engine.RunAsync(OneClickProject(maxAttempts: 1));
+        await WaitForStateAsync(engine, RunnerState.Paused, TimeSpan.FromSeconds(5), delay);
+
+        // Still on first attempt path: resume with interference cleared must succeed with maxAttempts=1.
+        interference.Interfering = false;
+        engine.RequestResume();
+        delay.ReleaseAll();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(RunnerState.Idle, engine.State);
+        Assert.Equal(1, executor.ExecuteCount);
+        Assert.DoesNotContain(RunnerState.FailedStep, engine.TransitionLog);
+        Assert.DoesNotContain(RunnerState.Retrying, engine.TransitionLog);
+    }
+
+    [Fact]
+    public async Task WaitStep_SkipsInterferenceCheck()
+    {
+        var interference = new MockInterferenceDetector { Interfering = true };
+        var executor = new MockExecutor();
+        var engine = new RunnerEngine(
+            new MockResolver(step => new ResolveResult(true, step.Id)),
+            new MockVerifier(true, true),
+            executor,
+            new ImmediateRunnerDelay(),
+            interferenceDetector: interference);
+
+        var project = new ProjectDocument
+        {
+            SchemaVersion = ProjectSchema.CurrentVersion,
+            Name = "wait-only",
+            Defaults = new ProjectDefaults
+            {
+                TimeoutMs = 0,
+                Retry = new RetryPolicy { MaxAttempts = 1, BackoffMs = 0 },
+            },
+            Steps = [new ScriptStep { Id = "wait-1", Type = "Wait", WaitMs = 1 }],
+        };
+
+        await engine.RunAsync(project);
+
+        Assert.Equal(RunnerState.Idle, engine.State);
+        Assert.Equal(1, executor.ExecuteCount);
+        Assert.Equal(0, interference.IsInterferingCallCount);
+        Assert.DoesNotContain(RunnerState.Paused, engine.TransitionLog);
+    }
+
+    [Fact]
     public async Task PauseDuringWait_HoldsBeforeNextStepUntilResume()
     {
         var waitStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -501,6 +595,27 @@ public sealed class RunnerEngineTests
     private static void AssertTransitionSequence(IReadOnlyList<RunnerState> actual, params RunnerState[] expected)
     {
         Assert.Equal(expected, actual.ToArray());
+    }
+
+    private sealed class MockInterferenceDetector : IUserInterferenceDetector
+    {
+        public bool Interfering { get; set; }
+
+        public int BeginGateCount { get; private set; }
+
+        public int IsInterferingCallCount { get; private set; }
+
+        public int NoteSyntheticCount { get; private set; }
+
+        public void BeginActionGate() => BeginGateCount++;
+
+        public bool IsUserInterfering()
+        {
+            IsInterferingCallCount++;
+            return Interfering;
+        }
+
+        public void NoteSyntheticInput() => NoteSyntheticCount++;
     }
 
     private sealed class MockResolver : ITargetResolver

@@ -8,7 +8,7 @@ public sealed class RunReportEvent
     public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// Event kind: runStarted, stepStarted, resolveAttempt, stepFinished, runFinished.
+    /// Event kind: runStarted, stepStarted, resolveAttempt, interferencePaused, stepFinished, runFinished.
     /// </summary>
     public string Event { get; set; } = "";
 
@@ -46,6 +46,7 @@ public static class RunReportEventNames
     public const string RunStarted = "runStarted";
     public const string StepStarted = "stepStarted";
     public const string ResolveAttempt = "resolveAttempt";
+    public const string InterferencePaused = "interferencePaused";
     public const string StepFinished = "stepFinished";
     public const string RunFinished = "runFinished";
 }

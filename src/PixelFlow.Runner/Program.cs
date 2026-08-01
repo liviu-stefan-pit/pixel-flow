@@ -118,16 +118,24 @@ internal static class Program
         Console.WriteLine($"[runner] Writing run report: {reportDirectory}");
 
         var services = new LiveStepServices(projectFolder);
+        var interference = new Win32UserInterferenceDetector();
         var engine = new RunnerEngine(
             services,
             services,
             services,
             reporter: reporter,
-            screenshotCapture: new PrimaryScreenFailureCapture());
+            screenshotCapture: new PrimaryScreenFailureCapture(),
+            interferenceDetector: interference);
         engine.StateChanged += state =>
         {
             Console.WriteLine($"[runner] State -> {state}");
-            if (state == RunnerState.FailedStep)
+            if (state == RunnerState.Paused
+                && string.Equals(engine.ActivePauseReason, PauseReasons.UserInterference, StringComparison.Ordinal))
+            {
+                Console.WriteLine(
+                    "[runner] PAUSED — user interference (mouse/keyboard) before input; Resume is not available in CLI mode (Stop/abort or re-run)");
+            }
+            else if (state == RunnerState.FailedStep)
             {
                 Console.WriteLine("[runner] FailedStep — retry/timeout budget exhausted or post-check failed");
             }

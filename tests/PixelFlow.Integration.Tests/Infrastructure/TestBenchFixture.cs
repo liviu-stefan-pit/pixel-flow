@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace PixelFlow.Integration.Tests.Infrastructure;
 
@@ -13,6 +14,8 @@ namespace PixelFlow.Integration.Tests.Infrastructure;
 /// </summary>
 public sealed class TestBenchFixture : IDisposable
 {
+    private const int SwRestore = 9;
+
     private readonly Process? _owned;
 
     public bool IsAvailable { get; }
@@ -23,8 +26,10 @@ public sealed class TestBenchFixture : IDisposable
     {
         try
         {
-            if (TryFindRunning() is not null)
+            var existing = TryFindRunning();
+            if (existing is not null)
             {
+                TryActivate(existing);
                 IsAvailable = true;
                 return;
             }
@@ -35,11 +40,28 @@ public sealed class TestBenchFixture : IDisposable
             {
                 UnavailableReason = "PixelFlow.TestBench launched but no window appeared within 10s.";
             }
+            else
+            {
+                TryActivate(_owned);
+            }
         }
         catch (Exception ex)
         {
             IsAvailable = false;
             UnavailableReason = $"Could not start PixelFlow.TestBench: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Bring Test Bench to the foreground (restore if minimized). Live UIA/click paths are more
+    /// reliable when the target is not stuck behind the test host / IDE.
+    /// </summary>
+    public void EnsureForeground()
+    {
+        var process = _owned ?? TryFindRunning();
+        if (process is not null)
+        {
+            TryActivate(process);
         }
     }
 
@@ -99,6 +121,26 @@ public sealed class TestBenchFixture : IDisposable
         }
 
         return false;
+    }
+
+    private static void TryActivate(Process process)
+    {
+        try
+        {
+            process.Refresh();
+            var hwnd = process.MainWindowHandle;
+            if (hwnd == IntPtr.Zero)
+            {
+                return;
+            }
+
+            ShowWindow(hwnd, SwRestore);
+            SetForegroundWindow(hwnd);
+        }
+        catch
+        {
+            // Foreground activation is best-effort (Windows may deny it to background processes).
+        }
     }
 
     private static (string FileName, string Arguments) ResolveTestBenchLaunch()
@@ -161,4 +203,10 @@ public sealed class TestBenchFixture : IDisposable
             _owned.Dispose();
         }
     }
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 }

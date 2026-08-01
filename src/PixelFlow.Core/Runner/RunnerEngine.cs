@@ -13,12 +13,14 @@ public sealed class RunnerEngine
     private readonly IStepVerifier _verifier;
     private readonly IStepExecutor _executor;
     private readonly IRunnerDelay _delay;
+    private readonly IUserInterferenceDetector _interference;
     private readonly IRunReporter? _reporter;
     private readonly IFailureScreenshotCapture? _screenshotCapture;
     private readonly List<RunnerState> _transitions = [];
     private readonly object _gate = new();
     private volatile bool _abortRequested;
     private volatile bool _pauseRequested;
+    private string? _activePauseReason;
     private CancellationTokenSource? _runCts;
     private RunnerState _state = RunnerState.Idle;
 
@@ -28,12 +30,14 @@ public sealed class RunnerEngine
         IStepExecutor executor,
         IRunnerDelay? delay = null,
         IRunReporter? reporter = null,
-        IFailureScreenshotCapture? screenshotCapture = null)
+        IFailureScreenshotCapture? screenshotCapture = null,
+        IUserInterferenceDetector? interferenceDetector = null)
     {
         _resolver = resolver ?? throw new ArgumentNullException(nameof(resolver));
         _verifier = verifier ?? throw new ArgumentNullException(nameof(verifier));
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _delay = delay ?? new SystemRunnerDelay();
+        _interference = interferenceDetector ?? NullUserInterferenceDetector.Instance;
         _reporter = reporter;
         _screenshotCapture = screenshotCapture;
         _transitions.Add(RunnerState.Idle);
@@ -57,6 +61,7 @@ public sealed class RunnerEngine
     {
         _abortRequested = true;
         _pauseRequested = false;
+        _activePauseReason = null;
         try
         {
             _runCts?.Cancel();
@@ -68,20 +73,26 @@ public sealed class RunnerEngine
     }
 
     /// <summary>
-    /// Request pause. Honored only between steps (never mid-input / mid-Wait).
-    /// The current step finishes, then the engine holds in <see cref="RunnerState.Paused"/> until resume/abort.
+    /// Request pause. Studio/IPC pause is honored between steps (never mid-input / mid-Wait).
+    /// User-interference pause is requested from inside a step before synthetic input and holds
+    /// immediately (no click is sent) until resume/abort.
     /// </summary>
-    public void RequestPause()
+    public void RequestPause(string? reason = null)
     {
+        _activePauseReason = reason ?? PauseReasons.UserRequested;
         _pauseRequested = true;
     }
 
     public void RequestResume()
     {
         _pauseRequested = false;
+        _activePauseReason = null;
     }
 
     public bool IsPauseRequested => _pauseRequested;
+
+    /// <summary>Why the engine is (or last became) paused; cleared on resume/abort.</summary>
+    public string? ActivePauseReason => _activePauseReason;
 
     public async Task RunAsync(ProjectDocument project, CancellationToken cancellationToken = default)
     {
@@ -96,6 +107,9 @@ public sealed class RunnerEngine
         {
             var ct = linked.Token;
             var steps = project.Steps;
+
+            // Ignore ambient input from before this run; only activity during the run counts.
+            _interference.NoteSyntheticInput();
 
             Report(new RunReportEvent
             {
@@ -418,6 +432,47 @@ public sealed class RunnerEngine
                 continue;
             }
 
+            // P24: brief observe window immediately before synthetic input.
+            if (IsSyntheticInputStep(step))
+            {
+                _interference.BeginActionGate();
+                try
+                {
+                    await _delay.DelayAsync(80, linked.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
+                {
+                    TransitionTo(RunnerState.Aborted);
+                    ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
+                    return StepOutcome.Aborted;
+                }
+
+                if (_interference.IsUserInterfering())
+                {
+                    Report(new RunReportEvent
+                    {
+                        Event = RunReportEventNames.InterferencePaused,
+                        StepId = step.Id,
+                        StepType = step.Type,
+                        Attempt = attempt,
+                        FailureReason = "User mouse/keyboard activity detected before input",
+                    });
+
+                    RequestPause(PauseReasons.UserInterference);
+                    await WaitWhilePausedAsync(linked).ConfigureAwait(false);
+                    if (_abortRequested || linked.IsCancellationRequested)
+                    {
+                        TransitionTo(RunnerState.Aborted);
+                        ReportStepFinished(step, RunReportOutcomes.Aborted, attempt, lastLayer, lastConfidence, "Aborted");
+                        return StepOutcome.Aborted;
+                    }
+
+                    // Re-resolve after resume; do not consume a retry attempt for interference.
+                    attempt--;
+                    continue;
+                }
+            }
+
             TransitionTo(RunnerState.Executing);
             if (ShouldAbort(linked))
             {
@@ -429,6 +484,10 @@ public sealed class RunnerEngine
             try
             {
                 await _executor.ExecuteAsync(step, candidate, linked.Token).ConfigureAwait(false);
+                if (IsSyntheticInputStep(step))
+                {
+                    _interference.NoteSyntheticInput();
+                }
             }
             catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
             {
@@ -519,6 +578,9 @@ public sealed class RunnerEngine
             await _delay.DelayAsync(slice, linked.Token).ConfigureAwait(false);
         }
     }
+
+    private static bool IsSyntheticInputStep(ScriptStep step) =>
+        !string.Equals(step.Type, "Wait", StringComparison.OrdinalIgnoreCase);
 
     private bool ShouldAbort(CancellationTokenSource linked)
     {

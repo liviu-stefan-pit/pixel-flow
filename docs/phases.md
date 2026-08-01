@@ -52,7 +52,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P21 | Run reports (JSONL) | Done |
 | P22 | Opt-in failure screenshots | Done |
 | P23 | Recovery steps (skip/jump/abort) | Done |
-| P24 | User-interference detection | Todo |
+| P24 | User-interference detection | Done |
 | P25 | Clipboard restore on type/paste | Todo |
 | P26 | DPI-aware coordinates | Todo |
 | P27 | Display-change invalidation | Todo |
@@ -358,7 +358,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P24 - User-interference detection
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** If user moves mouse/types near action time, Runner pauses instead of fighting for input.
 - **In scope:** Detection heuristic + pause.
 - **Out of scope:** Perfect classification of all input.

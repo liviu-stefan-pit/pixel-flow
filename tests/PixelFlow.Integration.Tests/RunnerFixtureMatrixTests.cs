@@ -32,6 +32,7 @@ public sealed class RunnerFixtureMatrixTests
     public async Task Fixture_Succeeds_ViaExpectedLocatorLayer(string fixtureName, string stepId, string expectedLayer)
     {
         Skip.IfNot(_bench.IsAvailable, _bench.UnavailableReason ?? "PixelFlow.TestBench unavailable.");
+        _bench.EnsureForeground();
 
         using var workspace = FixtureWorkspace.CreateCopy(fixtureName);
         var result = await RunnerCli.RunProjectAsync(workspace.ProjectFolder);
@@ -62,6 +63,7 @@ public sealed class RunnerFixtureMatrixTests
     public async Task Fixture_Fails_WithExitCode3_AndNoClick(string fixtureName, string stepId)
     {
         Skip.IfNot(_bench.IsAvailable, _bench.UnavailableReason ?? "PixelFlow.TestBench unavailable.");
+        _bench.EnsureForeground();
 
         using var workspace = FixtureWorkspace.CreateCopy(fixtureName);
         var result = await RunnerCli.RunProjectAsync(workspace.ProjectFolder);
@@ -85,6 +87,7 @@ public sealed class RunnerFixtureMatrixTests
     public async Task FailureScreenshotOn_WritesPngAndRecordsPathInReport()
     {
         Skip.IfNot(_bench.IsAvailable, _bench.UnavailableReason ?? "PixelFlow.TestBench unavailable.");
+        _bench.EnsureForeground();
 
         using var workspace = FixtureWorkspace.CreateCopy("failure-screenshot-on");
         var result = await RunnerCli.RunProjectAsync(workspace.ProjectFolder);
@@ -107,6 +110,7 @@ public sealed class RunnerFixtureMatrixTests
     public async Task FailureScreenshotOff_WritesNoPng()
     {
         Skip.IfNot(_bench.IsAvailable, _bench.UnavailableReason ?? "PixelFlow.TestBench unavailable.");
+        _bench.EnsureForeground();
 
         using var workspace = FixtureWorkspace.CreateCopy("failure-screenshot-off");
         var result = await RunnerCli.RunProjectAsync(workspace.ProjectFolder);

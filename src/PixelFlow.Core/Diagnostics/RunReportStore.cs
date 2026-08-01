@@ -124,6 +124,12 @@ public sealed class RunReportStore
             .Where(e => e.Event == RunReportEventNames.StepFinished)
             .ToList();
 
+        var interferenceCount = events.Count(e => e.Event == RunReportEventNames.InterferencePaused);
+        if (interferenceCount > 0)
+        {
+            sb.AppendLine($"User interference pauses: {interferenceCount}");
+        }
+
         if (stepResults.Count == 0)
         {
             sb.AppendLine("Steps: (none finished)");

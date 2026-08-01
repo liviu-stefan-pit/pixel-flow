@@ -213,6 +213,20 @@ dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-proje
 
 Omitted `recovery` still aborts (same as P11 `retry-miss.pflow`).
 
+### P24 — user-interference detection
+
+If the user moves the mouse or types near the moment a Click (or other synthetic input) would fire, the Runner **pauses before sending input** instead of fighting for control. Resume continues with a fresh resolve.
+
+Heuristic: recent `GetLastInputInfo` (excluding the Runner's own prior synthetic input) and/or cursor movement during the pre-execute gate. Not a perfect classifier.
+
+```powershell
+# From Studio: Run fixtures/projects/interference-pause.pflow (or set PIXELFLOW_PROJECT_FOLDER),
+# wiggle the mouse near the end of the opening Wait, watch status become Paused with an
+# interference warning, then Resume — click completes.
+```
+
+Live automated cover: `StudioIpcSessionTests.UserInterference_BeforeClick_PausesWithoutClick_ThenResumeCompletes` (nudges mouse via SendInput).
+
 ## Run Test Bench
 
 ```powershell
@@ -252,4 +266,4 @@ dotnet test PixelFlow.slnx --filter Category=Live                # Live: real Ru
 
 ## Status
 
-Phases **P00–P23** implemented (run reports, failure screenshots, recovery skip/jump/abort). See [docs/phases.md](docs/phases.md).
+Phases **P00–P24** implemented (run reports, failure screenshots, recovery, user-interference pause). See [docs/phases.md](docs/phases.md).

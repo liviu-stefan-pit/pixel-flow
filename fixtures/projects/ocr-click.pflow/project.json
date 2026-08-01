@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "ocr-click",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 8000,
+    "retry": {
+      "maxAttempts": 3,
+      "backoffMs": 300
+    }
+  },
+  "steps": [
+    {
+      "id": "click-ocr",
+      "type": "Click",
+      "timeoutMs": 8000,
+      "retry": {
+        "maxAttempts": 3,
+        "backoffMs": 300
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "Ocr",
+            "enabled": true,
+            "confidenceThreshold": 0.7,
+            "text": "OCR Target Label"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -60,7 +60,8 @@ public sealed class RunnerEngine
     }
 
     /// <summary>
-    /// Request pause. Honored between steps (P05 IPC surface; P10 tightens mid-run boundaries).
+    /// Request pause. Honored only between steps (never mid-input / mid-Wait).
+    /// The current step finishes, then the engine holds in <see cref="RunnerState.Paused"/> until resume/abort.
     /// </summary>
     public void RequestPause()
     {
@@ -162,6 +163,13 @@ public sealed class RunnerEngine
             backoffMs = 0;
         }
 
+        // Per-attempt resolve budget: poll until found or TimeoutMs elapses, then count as one failed attempt.
+        var timeoutMs = step.TimeoutMs ?? defaults.TimeoutMs;
+        if (timeoutMs < 0)
+        {
+            timeoutMs = 0;
+        }
+
         var attempt = 0;
         while (true)
         {
@@ -177,7 +185,7 @@ public sealed class RunnerEngine
             ResolveResult candidate;
             try
             {
-                candidate = await _resolver.ResolveAsync(step, linked.Token).ConfigureAwait(false);
+                candidate = await ResolveWithTimeoutAsync(step, timeoutMs, linked).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
             {
@@ -200,7 +208,16 @@ public sealed class RunnerEngine
                 }
 
                 TransitionTo(RunnerState.Retrying);
-                await _delay.DelayAsync(backoffMs, linked.Token).ConfigureAwait(false);
+                try
+                {
+                    await _delay.DelayAsync(backoffMs, linked.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
+                {
+                    TransitionTo(RunnerState.Aborted);
+                    return StepOutcome.Aborted;
+                }
+
                 continue;
             }
 
@@ -225,7 +242,16 @@ public sealed class RunnerEngine
                 }
 
                 TransitionTo(RunnerState.Retrying);
-                await _delay.DelayAsync(backoffMs, linked.Token).ConfigureAwait(false);
+                try
+                {
+                    await _delay.DelayAsync(backoffMs, linked.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (_abortRequested || linked.IsCancellationRequested)
+                {
+                    TransitionTo(RunnerState.Aborted);
+                    return StepOutcome.Aborted;
+                }
+
                 continue;
             }
 
@@ -272,6 +298,49 @@ public sealed class RunnerEngine
 
             TransitionTo(RunnerState.Idle);
             return StepOutcome.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Polls the resolver until a candidate is found, <paramref name="timeoutMs"/> wall-clock elapses,
+    /// or abort is requested. <c>timeoutMs == 0</c> means a single resolve attempt with no polling wait.
+    /// </summary>
+    private async Task<ResolveResult> ResolveWithTimeoutAsync(
+        ScriptStep step,
+        int timeoutMs,
+        CancellationTokenSource linked)
+    {
+        const int pollMs = 50;
+        ResolveResult last = ResolveResult.NotFound("No resolve attempt yet.");
+        var sw = timeoutMs > 0 ? System.Diagnostics.Stopwatch.StartNew() : null;
+
+        while (true)
+        {
+            if (ShouldAbort(linked) || linked.IsCancellationRequested)
+            {
+                linked.Cancel();
+                throw new OperationCanceledException(linked.Token);
+            }
+
+            last = await _resolver.ResolveAsync(step, linked.Token).ConfigureAwait(false);
+            if (last.Found)
+            {
+                return last;
+            }
+
+            if (sw is null || sw.ElapsedMilliseconds >= timeoutMs)
+            {
+                return last;
+            }
+
+            var remaining = timeoutMs - (int)sw.ElapsedMilliseconds;
+            if (remaining <= 0)
+            {
+                return last;
+            }
+
+            var slice = Math.Min(pollMs, remaining);
+            await _delay.DelayAsync(slice, linked.Token).ConfigureAwait(false);
         }
     }
 

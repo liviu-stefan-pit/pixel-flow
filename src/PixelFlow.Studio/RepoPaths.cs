@@ -26,6 +26,12 @@ internal static class RepoPaths
 
     public static string ResolveDefaultProjectFolder()
     {
+        var overrideFolder = Environment.GetEnvironmentVariable("PIXELFLOW_PROJECT_FOLDER");
+        if (!string.IsNullOrWhiteSpace(overrideFolder))
+        {
+            return Path.GetFullPath(overrideFolder);
+        }
+
         var root = FindSolutionRoot()
             ?? throw new InvalidOperationException("Could not locate PixelFlow solution root from Studio base directory.");
         return Path.Combine(root, "fixtures", "projects", "click-submit.pflow");
@@ -54,7 +60,7 @@ internal static class RepoPaths
         var root = FindSolutionRoot()
             ?? throw new InvalidOperationException("Could not locate PixelFlow.Runner. Build the solution or set PIXELFLOW_RUNNER_PATH.");
 
-        var tfms = new[] { "net10.0-windows", "net10.0" };
+        var tfms = new[] { "net10.0-windows10.0.19041.0", "net10.0-windows", "net10.0" };
         var configs = new[] { "Debug", "Release" };
         foreach (var config in configs)
         {

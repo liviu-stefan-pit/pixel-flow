@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "name": "chain-win32-fallback",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 5000,
+    "retry": {
+      "maxAttempts": 2,
+      "backoffMs": 200
+    }
+  },
+  "steps": [
+    {
+      "id": "click-chain-win32",
+      "type": "Click",
+      "timeoutMs": 5000,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 200
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbDoesNotExist",
+            "controlType": "Button",
+            "name": "Missing"
+          },
+          {
+            "kind": "Win32",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "windowClass": "BUTTON",
+            "controlId": 1001,
+            "name": "Win32 Click"
+          }
+        ]
+      }
+    }
+  ]
+}

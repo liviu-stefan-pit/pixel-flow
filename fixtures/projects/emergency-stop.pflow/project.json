@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "name": "emergency-stop",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 1000,
+    "retry": {
+      "maxAttempts": 1,
+      "backoffMs": 0
+    }
+  },
+  "steps": [
+    {
+      "id": "wait-1",
+      "type": "Wait",
+      "waitMs": 15000
+    },
+    {
+      "id": "wait-2",
+      "type": "Wait",
+      "waitMs": 15000
+    },
+    {
+      "id": "wait-3",
+      "type": "Wait",
+      "waitMs": 15000
+    }
+  ]
+}

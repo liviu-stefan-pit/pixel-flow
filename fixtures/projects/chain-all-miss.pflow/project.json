@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "name": "chain-all-miss",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 400,
+    "retry": {
+      "maxAttempts": 2,
+      "backoffMs": 50
+    }
+  },
+  "steps": [
+    {
+      "id": "click-all-miss",
+      "type": "Click",
+      "timeoutMs": 400,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 50
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbMissing",
+            "controlType": "Button"
+          },
+          {
+            "kind": "Win32",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "windowClass": "BUTTON",
+            "controlId": 9999
+          },
+          {
+            "kind": "Ocr",
+            "enabled": true,
+            "confidenceThreshold": 0.95,
+            "text": "ZZZ_NO_SUCH_TEXT_ON_SCREEN"
+          }
+        ]
+      }
+    }
+  ]
+}

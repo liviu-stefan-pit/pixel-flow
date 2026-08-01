@@ -86,6 +86,8 @@ internal static class Program
 
         Console.WriteLine("[resolve] FOUND");
         Console.WriteLine($"  CandidateId : {result.CandidateId}");
+        Console.WriteLine($"  Layer       : {result.MatchedLayer}");
+        Console.WriteLine($"  Confidence  : {result.Confidence:0.###}");
         Console.WriteLine($"  AutomationId: {result.AutomationId}");
         Console.WriteLine($"  Name        : {result.Name}");
         Console.WriteLine($"  ControlType : {result.ControlType}");
@@ -104,12 +106,28 @@ internal static class Program
             return 1;
         }
 
+        projectFolder = Path.GetFullPath(projectFolder);
         var store = new ProjectStore();
         var project = store.Load(projectFolder);
         Console.WriteLine($"[runner] Loaded project '{project.Name}' ({project.Steps.Count} steps) from {projectFolder}");
 
-        var services = new LiveStepServices();
+        var services = new LiveStepServices(projectFolder);
         var engine = new RunnerEngine(services, services, services);
+        engine.StateChanged += state =>
+        {
+            Console.WriteLine($"[runner] State -> {state}");
+            if (state == RunnerState.FailedStep)
+            {
+                Console.WriteLine("[runner] FailedStep — retry/timeout budget exhausted or post-check failed");
+            }
+        };
+
+        using var emergencyStop = new EmergencyStopHotkey(() =>
+        {
+            Console.WriteLine($"[runner] Emergency stop ({EmergencyStopHotkey.ChordDisplay}) — RequestAbort");
+            engine.RequestAbort();
+        });
+
         await engine.RunAsync(project).ConfigureAwait(false);
 
         Console.WriteLine($"[runner] Finished in state {engine.State}");
@@ -156,8 +174,9 @@ internal static class Program
               PixelFlow.Runner --run-project <path-to-.pflow-folder>
 
             Studio starts this process with --pipe for run/pause/resume/stop.
+            Emergency stop (global): Ctrl+Shift+F12 — aborts the active run even if another window has focus.
             Use --resolve (P07) to print UIA structural match info for the Test Bench button.
-            Use --run-project (P08) to execute a fixture with live UIA click + post-check.
+            Use --run-project (P08+) to execute a fixture with live UIA click + post-check.
             """;
         Console.WriteLine(usage.ReplaceLineEndings(Environment.NewLine));
     }

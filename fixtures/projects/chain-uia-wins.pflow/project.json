@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "name": "chain-uia-wins",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 5000,
+    "retry": {
+      "maxAttempts": 2,
+      "backoffMs": 200
+    }
+  },
+  "steps": [
+    {
+      "id": "click-chain-uia",
+      "type": "Click",
+      "timeoutMs": 5000,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 200
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbSubmit",
+            "controlType": "Button",
+            "name": "Submit"
+          },
+          {
+            "kind": "Win32",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "windowClass": "BUTTON",
+            "controlId": 1001
+          },
+          {
+            "kind": "Ocr",
+            "enabled": true,
+            "confidenceThreshold": 0.7,
+            "text": "Submit"
+          }
+        ]
+      }
+    }
+  ]
+}

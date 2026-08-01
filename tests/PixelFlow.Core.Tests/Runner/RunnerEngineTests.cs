@@ -137,6 +137,91 @@ public sealed class RunnerEngineTests
     }
 
     [Fact]
+    public async Task PauseDuringWait_HoldsBeforeNextStepUntilResume()
+    {
+        var waitStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowWaitFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var resolver = new MockResolver(step => new ResolveResult(true, step.Id));
+        var executor = new MockExecutor(async (step, _, ct) =>
+        {
+            if (step.Id == "wait-before")
+            {
+                waitStarted.TrySetResult();
+                await allowWaitFinish.Task.WaitAsync(ct).ConfigureAwait(false);
+            }
+        });
+        var delay = new ControllableDelay();
+        var engine = new RunnerEngine(resolver, new MockVerifier(true, true), executor, delay);
+
+        var project = new ProjectDocument
+        {
+            SchemaVersion = ProjectSchema.CurrentVersion,
+            Name = "pause-mid",
+            Defaults = new ProjectDefaults
+            {
+                TimeoutMs = 0,
+                Retry = new RetryPolicy { MaxAttempts = 1, BackoffMs = 0 },
+            },
+            Steps =
+            [
+                new ScriptStep { Id = "wait-before", Type = "Wait", WaitMs = 4000 },
+                new ScriptStep
+                {
+                    Id = "click-submit",
+                    Type = "Click",
+                    Locator = new LocatorChain
+                    {
+                        Layers = [new LocatorLayer { Kind = "UiaStructural", AutomationId = "TbSubmit" }],
+                    },
+                },
+                new ScriptStep { Id = "wait-after", Type = "Wait", WaitMs = 100 },
+            ],
+        };
+
+        var runTask = engine.RunAsync(project);
+        await waitStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(RunnerState.Executing, engine.State);
+        engine.RequestPause();
+        Assert.Equal(1, executor.ExecuteCount);
+
+        allowWaitFinish.TrySetResult();
+        await WaitForStateAsync(engine, RunnerState.Paused, TimeSpan.FromSeconds(5), delay);
+        Assert.Equal(1, executor.ExecuteCount);
+
+        engine.RequestResume();
+        delay.ReleaseAll();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(RunnerState.Idle, engine.State);
+        Assert.Equal(3, executor.ExecuteCount);
+        Assert.Contains(RunnerState.Paused, engine.TransitionLog);
+    }
+
+    [Fact]
+    public async Task PerAttemptTimeout_PollsThenRetriesThenFailedStep()
+    {
+        var resolver = new MockResolver(_ => new ResolveResult(false, FailureReason: "missing"));
+        var executor = new MockExecutor();
+        var engine = new RunnerEngine(resolver, new MockVerifier(true, true), executor, new SystemRunnerDelay());
+
+        var project = OneClickProject(maxAttempts: 3, backoffMs: 50, timeoutMs: 100);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await engine.RunAsync(project);
+        sw.Stop();
+
+        Assert.Equal(RunnerState.Aborted, engine.State);
+        Assert.Contains(RunnerState.FailedStep, engine.TransitionLog);
+        Assert.Equal(0, executor.ExecuteCount);
+        Assert.Equal(3, engine.TransitionLog.Count(s => s == RunnerState.Resolving));
+        Assert.Equal(2, engine.TransitionLog.Count(s => s == RunnerState.Retrying));
+        // ~3×100ms timeout + 2×50ms backoff; allow resolve overhead.
+        Assert.InRange(sw.ElapsedMilliseconds, 250, 3000);
+        Assert.True(resolver.CallCount >= 3);
+    }
+
+    [Fact]
     public async Task PauseBeforeFirstStep_ResumeContinues()
     {
         var resolver = new MockResolver(_ => new ResolveResult(true, "el"));
@@ -228,13 +313,13 @@ public sealed class RunnerEngineTests
             new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
-    private static ProjectDocument OneClickProject(int maxAttempts = 3, int backoffMs = 0) => new()
+    private static ProjectDocument OneClickProject(int maxAttempts = 3, int backoffMs = 0, int timeoutMs = 0) => new()
     {
         SchemaVersion = ProjectSchema.CurrentVersion,
         Name = "runner-test",
         Defaults = new ProjectDefaults
         {
-            TimeoutMs = 1000,
+            TimeoutMs = timeoutMs,
             Retry = new RetryPolicy { MaxAttempts = maxAttempts, BackoffMs = backoffMs },
         },
         Steps =
@@ -243,6 +328,7 @@ public sealed class RunnerEngineTests
             {
                 Id = "click-1",
                 Type = "Click",
+                TimeoutMs = timeoutMs,
                 Locator = new LocatorChain
                 {
                     Layers =

@@ -25,9 +25,12 @@ dotnet run --project src/PixelFlow.Studio/PixelFlow.Studio.csproj
 ```
 
 Studio starts the Runner as a separate process and sends versioned run/pause/resume/stop over a named pipe.
-Default fixture: `fixtures/projects/click-submit.pflow` (one verified UIA click on Test Bench). For pause/stop demos, point at `fixtures/projects/ipc-wait.pflow` or set that path in code.
+Default fixture: `fixtures/projects/click-submit.pflow` (one verified UIA click on Test Bench).
+Override: set `PIXELFLOW_PROJECT_FOLDER` to another `.pflow` folder (e.g. `emergency-stop`, `pause-resume`, `retry-miss`).
 
 Optional: set `PIXELFLOW_RUNNER_PATH` to a Runner exe/dll if auto-discovery fails.
+
+**Emergency stop:** `Ctrl+Shift+F12` (global, registered by the Runner). Works even when another window has focus.
 
 ## Run Runner (manual / help)
 
@@ -62,13 +65,93 @@ Counter should become **Clicks: 1**. Close Test Bench and re-run; the run fails 
 
 Or use Studio **Run** with Test Bench open (same fixture).
 
+### P09 — emergency stop hotkey
+
+1. Run a long-wait fixture:
+
+```powershell
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/emergency-stop.pflow
+```
+
+2. Click another window so Runner does not have focus.
+3. Press **Ctrl+Shift+F12**.
+4. Runner logs abort, finishes in `Aborted`, and does not continue later Wait steps.
+
+Or from Studio: `$env:PIXELFLOW_PROJECT_FOLDER="fixtures/projects/emergency-stop.pflow"`, Run, then Ctrl+Shift+F12 — Studio status should show Aborted.
+
+### P10 — pause / resume between steps
+
+1. Start Test Bench at **Clicks: 0**.
+2. Run:
+
+```powershell
+dotnet run --project src/PixelFlow.Studio/PixelFlow.Studio.csproj
+```
+
+with `$env:PIXELFLOW_PROJECT_FOLDER` pointing at `fixtures/projects/pause-resume.pflow` (Wait → Click → Wait).
+
+3. During the first Wait, click **Pause**. Status stays Executing until the Wait finishes, then **Paused**.
+4. Confirm the Click has not run yet (counter still 0).
+5. Click **Resume**; counter becomes 1 and the final Wait completes.
+
+### P11 — retry budget and FailedStep
+
+No Test Bench needed (targets a missing AutomationId):
+
+```powershell
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/retry-miss.pflow
+```
+
+Expect three resolve attempts (`timeoutMs=200`, `backoffMs=100`), then `FailedStep` → `Aborted`. Wall time roughly ~3×200ms + 2×100ms (order of ~1s), not an infinite hang. Exit code `3`.
+
+### P12 — Win32 locator fallback
+
+1. Start Test Bench (native **Win32 Click** button, class `BUTTON`, control id `1001`).
+2. Run:
+
+```powershell
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/win32-click.pflow
+```
+
+Log should show `layer=Win32`; counter increments. Broken-UIA fallback: `fixtures/projects/chain-win32-fallback.pflow`.
+
+### P13 — OCR locator fallback
+
+```powershell
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/ocr-click.pflow
+```
+
+Hits **OCR Target Label** via Windows.Media.Ocr. Miss: `fixtures/projects/ocr-miss.pflow` → FailedStep, no click.
+
+### P14 — Image template fallback
+
+```powershell
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/image-click.pflow
+```
+
+Matches the magenta icon via OpenCvSharp multi-scale template. Miss (noise asset below threshold): `fixtures/projects/image-miss.pflow`.
+
+### P15 — Locator chain ranking
+
+- UIA wins: `fixtures/projects/chain-uia-wins.pflow` → log `layer=UiaStructural`
+- Win32 fallback: `fixtures/projects/chain-win32-fallback.pflow` → log `layer=Win32`
+- All miss: `fixtures/projects/chain-all-miss.pflow` → FailedStep, no click
+
+Resolve logs always include `layer=` and `confidence=`.
+
+### P16 — UIA inspector
+
+1. `dotnet run --project src/PixelFlow.Studio/PixelFlow.Studio.csproj`
+2. Check **UIA Inspector**, hover Test Bench **Submit**.
+3. Panel shows AutomationId / Name / ControlType / bounds / process / window (hand-copy into locators).
+
 ## Run Test Bench
 
 ```powershell
 dotnet run --project src/PixelFlow.TestBench/PixelFlow.TestBench.csproj
 ```
 
-Companion WPF window with **Submit** (`AutomationId` = `TbSubmit`) and a click counter (`TbCounter`).
+Companion window with shared click counter plus WPF Submit (`TbSubmit`), native Win32 button (`BUTTON` / id 1001), OCR target text, and magenta image icon.
 
 ## Tests
 
@@ -81,12 +164,12 @@ dotnet test PixelFlow.slnx
 | Path | Role |
 |---|---|
 | `src/PixelFlow.Core` | Shared project model, JSON, store, migrations, IPC schema, runner engine |
-| `src/PixelFlow.Runner` | Automation worker (named-pipe host, UIA locator, verified click) |
-| `src/PixelFlow.Studio` | WPF editor shell (run/pause/stop IPC client) |
-| `src/PixelFlow.TestBench` | Minimal WPF target app for locator/integration tests |
+| `src/PixelFlow.Runner` | Automation worker (named-pipe host, locator chain, verified click) |
+| `src/PixelFlow.Studio` | WPF editor shell (run/pause/stop IPC client, UIA inspector) |
+| `src/PixelFlow.TestBench` | Target app for locator/integration tests (WPF + Win32 + OCR + image) |
 | `tests/PixelFlow.Core.Tests` | Unit tests |
 | `fixtures/projects` | Sample `.pflow` project bundles |
 
 ## Status
 
-Phases **P00–P08** implemented (through UIA structural locator and one verified click). See [docs/phases.md](docs/phases.md).
+Phases **P00–P16** implemented (through Win32/OCR/image locator fallbacks, chain ranking + confidence, and Studio UIA inspector). See [docs/phases.md](docs/phases.md).

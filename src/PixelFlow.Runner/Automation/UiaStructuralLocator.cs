@@ -328,7 +328,9 @@ internal static class UiaStructuralLocator
             AutomationId: automationId,
             Name: name,
             ControlType: controlType,
-            ProcessId: processId);
+            ProcessId: processId,
+            MatchedLayer: LocatorKinds.UiaStructural,
+            Confidence: 1.0);
     }
 
     private static Condition? BuildCondition(LocatorLayer layer)

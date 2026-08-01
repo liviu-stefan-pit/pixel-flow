@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "ocr-miss",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 2000,
+    "retry": {
+      "maxAttempts": 2,
+      "backoffMs": 100
+    }
+  },
+  "steps": [
+    {
+      "id": "click-ocr-miss",
+      "type": "Click",
+      "timeoutMs": 2000,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 100
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "Ocr",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "text": "ZZZ_NO_SUCH_OCR_TEXT"
+          }
+        ]
+      }
+    }
+  ]
+}

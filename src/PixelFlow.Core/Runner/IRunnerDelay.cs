@@ -1,7 +1,7 @@
 namespace PixelFlow.Core.Runner;
 
 /// <summary>
-/// Stub-friendly delay used for retry backoff (and future per-step timeouts).
+/// Stub-friendly delay used for retry backoff and per-attempt resolve polling.
 /// </summary>
 public interface IRunnerDelay
 {

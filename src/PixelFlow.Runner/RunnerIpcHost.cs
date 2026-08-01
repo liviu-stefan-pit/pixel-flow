@@ -15,6 +15,7 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
     private readonly string _pipeName;
     private readonly ProjectStore _store = new();
     private readonly CancellationTokenSource _shutdown = new();
+    private readonly EmergencyStopHotkey _emergencyStop;
     private RunnerEngine? _engine;
     private Task? _runTask;
     private IpcPipeConnection? _connection;
@@ -24,6 +25,20 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pipeName);
         _pipeName = pipeName;
+        _emergencyStop = new EmergencyStopHotkey(OnEmergencyStop);
+    }
+
+    private void OnEmergencyStop()
+    {
+        var engine = _engine;
+        if (engine is null)
+        {
+            Console.WriteLine("[runner] Emergency stop ignored: no active engine.");
+            return;
+        }
+
+        engine.RequestAbort();
+        _ = SendLogAsync("warning", $"Emergency stop ({EmergencyStopHotkey.ChordDisplay}): aborting run.");
     }
 
     public async Task RunAsync()
@@ -60,7 +75,7 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
 
         await SendHelloAckAsync().ConfigureAwait(false);
         await SendStatusAsync(connected: true, RunnerState.Idle).ConfigureAwait(false);
-        Console.WriteLine("[runner] Handshake OK — waiting for Run/Pause/Resume/Stop");
+        Console.WriteLine($"[runner] Handshake OK — waiting for Run/Pause/Resume/Stop (emergency stop: {EmergencyStopHotkey.ChordDisplay})");
 
         try
         {
@@ -168,6 +183,8 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
             return;
         }
 
+        projectFolder = Path.GetFullPath(projectFolder);
+
         ProjectDocument project;
         try
         {
@@ -182,7 +199,7 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
         Console.WriteLine($"[runner] Run starting: {project.Name} ({project.Steps.Count} steps) from {projectFolder}");
         await SendLogAsync("info", $"Run starting: {project.Name}").ConfigureAwait(false);
 
-        var live = new LiveStepServices();
+        var live = new LiveStepServices(projectFolder);
         _engine = new RunnerEngine(live, live, live);
         _engine.RequestResume();
         _engine.StateChanged += OnEngineStateChanged;
@@ -229,6 +246,21 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
             _ = SendLogAsync(
                 "info",
                 "PAUSED between steps. Run is still active — click Resume to continue or Stop to abort.");
+        }
+        else if (state == RunnerState.FailedStep)
+        {
+            Console.WriteLine("[runner] FailedStep — retry/timeout budget exhausted or post-check failed");
+            _ = SendLogAsync(
+                "error",
+                "FailedStep: resolve/verify budget exhausted or post-check failed (no recovery configured → abort).");
+        }
+        else if (state == RunnerState.Aborted)
+        {
+            _ = SendLogAsync("warning", "Run Aborted.");
+        }
+        else if (state == RunnerState.Retrying)
+        {
+            _ = SendLogAsync("info", "Retrying after miss/backoff…");
         }
 
         _ = SendStatusAsync(connected: true, state);
@@ -307,6 +339,7 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
             await _pipe.DisposeAsync().ConfigureAwait(false);
         }
 
+        _emergencyStop.Dispose();
         _shutdown.Dispose();
     }
 }

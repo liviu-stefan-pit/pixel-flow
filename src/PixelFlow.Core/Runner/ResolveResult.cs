@@ -11,7 +11,10 @@ public sealed record ResolveResult(
     string? AutomationId = null,
     string? Name = null,
     string? ControlType = null,
-    int ProcessId = 0)
+    int ProcessId = 0,
+    string? MatchedLayer = null,
+    double Confidence = 0,
+    nint NativeHandle = 0)
 {
     public static ResolveResult NotFound(string reason) =>
         new(Found: false, FailureReason: reason);

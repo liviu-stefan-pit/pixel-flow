@@ -1,0 +1,37 @@
+﻿{
+  "schemaVersion": 1,
+  "name": "image-miss",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 1500,
+    "retry": {
+      "maxAttempts": 2,
+      "backoffMs": 100
+    }
+  },
+  "steps": [
+    {
+      "id": "click-image-miss",
+      "type": "Click",
+      "timeoutMs": 1500,
+      "retry": {
+        "maxAttempts": 2,
+        "backoffMs": 100
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "Image",
+            "enabled": true,
+            "confidenceThreshold": 0.85,
+            "imageAssetHash": "sha256-4b6b573868fa679517cdf357914b7d48d8caf059e85935d2978d74f6142887eb"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -7,8 +7,8 @@ using PixelFlow.Core.Runner;
 namespace PixelFlow.Runner.Automation;
 
 /// <summary>
-/// Live UIA resolve / re-check / Invoke / post-check for Click steps; Wait remains timing-only.
-/// Never sends input unless a scoped element was re-resolved successfully.
+/// Live resolve / re-check / click / post-check for Click steps; Wait remains timing-only.
+/// Resolves via ordered locator chain (UIA → Win32 → OCR → Image). Never clicks without a fresh resolve.
 /// </summary>
 internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepExecutor
 {
@@ -17,28 +17,27 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private readonly IRunnerDelay _delay;
+    private readonly string? _projectFolder;
     private readonly Dictionary<string, int> _counterBeforeByStep = new(StringComparer.Ordinal);
 
-    public LiveStepServices(IRunnerDelay? delay = null)
+    public LiveStepServices(string? projectFolder = null, IRunnerDelay? delay = null)
     {
+        _projectFolder = projectFolder;
         _delay = delay ?? new SystemRunnerDelay();
     }
 
-    public Task<ResolveResult> ResolveAsync(ScriptStep step, CancellationToken cancellationToken)
+    public async Task<ResolveResult> ResolveAsync(ScriptStep step, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         if (IsWait(step))
         {
-            return Task.FromResult(new ResolveResult(Found: true, CandidateId: $"wait:{step.Id}"));
+            return new ResolveResult(Found: true, CandidateId: $"wait:{step.Id}");
         }
 
-        if (!TryGetStructuralLayer(step, out var layer, out var reason))
-        {
-            return Task.FromResult(ResolveResult.NotFound(reason));
-        }
+        var result = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
+            .ConfigureAwait(false);
 
-        var result = UiaStructuralLocator.Find(layer!, step.Locator!.Scope);
         if (!result.Found)
         {
             Console.WriteLine($"[runner] Resolve miss (step {step.Id}): {result.FailureReason}");
@@ -46,14 +45,15 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         else
         {
             Console.WriteLine(
-                $"[runner] Resolve hit (step {step.Id}): AutomationId={result.AutomationId}, " +
+                $"[runner] Resolve hit (step {step.Id}): layer={result.MatchedLayer}, " +
+                $"confidence={result.Confidence:0.###}, AutomationId={result.AutomationId}, " +
                 $"Name={result.Name}, ControlType={result.ControlType}, Bounds={result.BoundingRect}");
         }
 
-        return Task.FromResult(result);
+        return result;
     }
 
-    public Task<bool> VerifyBeforeExecuteAsync(
+    public async Task<bool> VerifyBeforeExecuteAsync(
         ScriptStep step,
         ResolveResult candidate,
         CancellationToken cancellationToken)
@@ -62,53 +62,35 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
 
         if (IsWait(step))
         {
-            return Task.FromResult(true);
+            return true;
         }
 
         if (!candidate.Found)
         {
-            return Task.FromResult(false);
+            return false;
         }
 
-        if (!TryGetStructuralLayer(step, out var layer, out _))
+        // Re-resolve immediately before input (stale handle / closed window / moved UI).
+        var live = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
+            .ConfigureAwait(false);
+        if (!live.Found || live.BoundingRect.IsEmpty)
         {
-            return Task.FromResult(false);
+            Console.WriteLine(
+                $"[runner] Pre-check failed (step {step.Id}): {live.FailureReason ?? "empty bounds"}");
+            return false;
         }
 
-        // Re-resolve immediately before input (stale handle / closed window).
-        if (!UiaStructuralLocator.TryFindElement(layer!, step.Locator!.Scope, out var element, out var failure))
+        if (TryReadClickCount(step.Locator?.Scope, out var count))
         {
-            Console.WriteLine($"[runner] Pre-check failed (step {step.Id}): {failure}");
-            return Task.FromResult(false);
+            _counterBeforeByStep[step.Id] = count;
+            Console.WriteLine($"[runner] Pre-check counter snapshot (step {step.Id}): {count}");
         }
-
-        try
+        else
         {
-            var live = UiaStructuralLocator.ToResult(element!, element!.Current.ProcessId);
-            if (live.BoundingRect.IsEmpty)
-            {
-                Console.WriteLine($"[runner] Pre-check failed (step {step.Id}): empty bounding rect.");
-                return Task.FromResult(false);
-            }
-
-            // Snapshot Test Bench counter for post-check when present in the same scope.
-            if (TryReadClickCount(step.Locator.Scope, out var count))
-            {
-                _counterBeforeByStep[step.Id] = count;
-                Console.WriteLine($"[runner] Pre-check counter snapshot (step {step.Id}): {count}");
-            }
-            else
-            {
-                _counterBeforeByStep.Remove(step.Id);
-            }
-
-            return Task.FromResult(true);
+            _counterBeforeByStep.Remove(step.Id);
         }
-        catch (ElementNotAvailableException)
-        {
-            Console.WriteLine($"[runner] Pre-check failed (step {step.Id}): element unavailable.");
-            return Task.FromResult(false);
-        }
+
+        return true;
     }
 
     public async Task ExecuteAsync(
@@ -136,36 +118,35 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
                 $"Live executor does not support step type '{step.Type}' yet (step {step.Id}).");
         }
 
-        if (!TryGetStructuralLayer(step, out var layer, out var reason))
-        {
-            throw new InvalidOperationException(reason);
-        }
-
-        // Final re-resolve: never click by absolute screen guess if the element is gone.
-        if (!UiaStructuralLocator.TryFindElement(layer!, step.Locator!.Scope, out var element, out var failure))
+        // Final re-resolve: never click by absolute screen guess if the target is gone.
+        var live = await LocatorChainResolver.ResolveAsync(step, _projectFolder, cancellationToken)
+            .ConfigureAwait(false);
+        if (!live.Found || live.BoundingRect.IsEmpty)
         {
             throw new InvalidOperationException(
-                $"Refusing to click: target not found at execute time ({failure}).");
+                $"Refusing to click: target not found at execute time ({live.FailureReason}).");
         }
 
-        object? patternObj;
-        try
+        var layer = live.MatchedLayer ?? "";
+        if (string.Equals(layer, LocatorKinds.UiaStructural, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(layer, LocatorKinds.UiaSemantic, StringComparison.OrdinalIgnoreCase))
         {
-            if (!element!.TryGetCurrentPattern(InvokePattern.Pattern, out patternObj) || patternObj is null)
-            {
-                throw new InvalidOperationException(
-                    $"Refusing to click: element '{layer!.AutomationId}' does not support InvokePattern.");
-            }
+            TryInvokeUia(step, live);
+            return;
         }
-        catch (ElementNotAvailableException ex)
+
+        if (string.Equals(layer, LocatorKinds.Win32, StringComparison.OrdinalIgnoreCase)
+            && live.NativeHandle != 0)
         {
-            throw new InvalidOperationException(
-                "Refusing to click: element became unavailable before Invoke.", ex);
+            Console.WriteLine(
+                $"[runner] Win32 BM_CLICK hwnd=0x{live.NativeHandle:X} (step {step.Id}, layer={layer})");
+            SendInputClick.ClickHwnd(live.NativeHandle);
+            return;
         }
 
         Console.WriteLine(
-            $"[runner] Invoke Click on AutomationId={layer!.AutomationId} (step {step.Id})");
-        ((InvokePattern)patternObj).Invoke();
+            $"[runner] SendInput click at {live.BoundingRect} (step {step.Id}, layer={layer}, confidence={live.Confidence:0.###})");
+        SendInputClick.ClickCenter(live.BoundingRect);
     }
 
     public Task<bool> VerifyAfterExecuteAsync(
@@ -192,6 +173,9 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
             return Task.FromResult(false);
         }
 
+        // Brief settle for SendInput / BM_CLICK to update the counter label.
+        Thread.Sleep(50);
+
         if (!TryReadClickCount(step.Locator?.Scope, out var after))
         {
             Console.WriteLine($"[runner] Post-check failed (step {step.Id}): TbCounter unreadable after click.");
@@ -206,39 +190,63 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
         return Task.FromResult(ok);
     }
 
+    private static void TryInvokeUia(ScriptStep step, ResolveResult live)
+    {
+        // Prefer InvokePattern when the winning layer was UIA; fall back to SendInput on bounds.
+        var layer = step.Locator?.Layers.FirstOrDefault(l =>
+            l.Enabled
+            && (string.Equals(l.Kind, LocatorKinds.UiaStructural, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(l.Kind, LocatorKinds.UiaSemantic, StringComparison.OrdinalIgnoreCase)));
+
+        if (layer is not null
+            && UiaStructuralLocator.TryFindElement(
+                string.Equals(live.MatchedLayer, LocatorKinds.UiaSemantic, StringComparison.OrdinalIgnoreCase)
+                    ? new LocatorLayer
+                    {
+                        Kind = LocatorKinds.UiaSemantic,
+                        Enabled = true,
+                        Name = layer.Name,
+                        ControlType = layer.ControlType,
+                    }
+                    : layer,
+                step.Locator!.Scope,
+                out var element,
+                out var failure)
+            && element is not null)
+        {
+            try
+            {
+                if (element.TryGetCurrentPattern(InvokePattern.Pattern, out var patternObj)
+                    && patternObj is InvokePattern invoke)
+                {
+                    Console.WriteLine(
+                        $"[runner] Invoke Click (step {step.Id}, layer={live.MatchedLayer}, AutomationId={live.AutomationId})");
+                    invoke.Invoke();
+                    return;
+                }
+            }
+            catch (ElementNotAvailableException ex)
+            {
+                throw new InvalidOperationException(
+                    "Refusing to click: element became unavailable before Invoke.", ex);
+            }
+
+            Console.WriteLine(
+                $"[runner] No InvokePattern ({failure}); SendInput fallback (step {step.Id})");
+        }
+
+        SendInputClick.ClickCenter(live.BoundingRect);
+    }
+
     private static bool IsWait(ScriptStep step) =>
         string.Equals(step.Type, "Wait", StringComparison.OrdinalIgnoreCase);
-
-    private static bool TryGetStructuralLayer(ScriptStep step, out LocatorLayer? layer, out string reason)
-    {
-        layer = null;
-        var locator = step.Locator;
-        if (locator is null)
-        {
-            reason = $"Step '{step.Id}' has no locator.";
-            return false;
-        }
-
-        layer = locator.Layers.FirstOrDefault(static l =>
-            l.Enabled
-            && string.Equals(l.Kind, "UiaStructural", StringComparison.OrdinalIgnoreCase));
-
-        if (layer is null)
-        {
-            reason = $"Step '{step.Id}' has no enabled UiaStructural locator layer.";
-            return false;
-        }
-
-        reason = "";
-        return true;
-    }
 
     private static bool TryReadClickCount(ProcessWindowScope? scope, out int count)
     {
         count = 0;
         var layer = new LocatorLayer
         {
-            Kind = "UiaStructural",
+            Kind = LocatorKinds.UiaStructural,
             Enabled = true,
             AutomationId = "TbCounter",
             ControlType = "Text",
@@ -246,7 +254,6 @@ internal sealed class LiveStepServices : ITargetResolver, IStepVerifier, IStepEx
 
         if (!UiaStructuralLocator.TryFindElement(layer, scope, out var element, out _))
         {
-            // ControlType may not always be Text for WPF TextBlock; try AutomationId only.
             layer.ControlType = null;
             if (!UiaStructuralLocator.TryFindElement(layer, scope, out element, out _))
             {

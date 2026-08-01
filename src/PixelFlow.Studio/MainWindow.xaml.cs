@@ -6,6 +6,7 @@ public partial class MainWindow : Window
 {
     private readonly RunnerSession _session = new();
     private readonly string _projectFolder;
+    private readonly UiaInspectorService _inspector;
     private bool _runCommandBusy;
 
     public MainWindow()
@@ -13,6 +14,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         _projectFolder = TryResolveProjectFolder();
         ProjectPathText.Text = "Project: " + _projectFolder;
+
+        _inspector = new UiaInspectorService(snap =>
+        {
+            InspectorBox.Text = snap.FormatDisplay();
+        });
 
         _session.StatusTextChanged += text => Dispatcher.BeginInvoke(() => StatusText.Text = "Runner: " + text);
         _session.LogReceived += line => Dispatcher.BeginInvoke(() => AppendLog(line));
@@ -23,7 +29,11 @@ public partial class MainWindow : Window
         });
         _session.ConnectionStateChanged += () => Dispatcher.BeginInvoke(UpdateCommandButtons);
 
-        Closed += async (_, _) => await _session.DisposeAsync();
+        Closed += async (_, _) =>
+        {
+            _inspector.Dispose();
+            await _session.DisposeAsync();
+        };
         UpdateCommandButtons();
     }
 
@@ -39,6 +49,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnInspectorChecked(object sender, RoutedEventArgs e)
+    {
+        _inspector.Start();
+        InspectorBox.Text = "Inspector on — hover a UI element…";
+    }
+
+    private void OnInspectorUnchecked(object sender, RoutedEventArgs e)
+    {
+        _inspector.Stop();
+        InspectorBox.Text = "Inspector off — enable the checkbox above.";
+    }
+
     private async void OnRunClick(object sender, RoutedEventArgs e)
     {
         try
@@ -47,7 +69,7 @@ public partial class MainWindow : Window
             UpdateCommandButtons();
             AppendLog("Run requested…");
             await _session.RunProjectAsync(_projectFolder);
-            AppendLog("Playing click-submit fixture (requires Test Bench open at Clicks: 0). Idle = success.");
+            AppendLog("Playing project (Idle = success). Emergency stop: Ctrl+Shift+F12.");
         }
         catch (Exception ex)
         {

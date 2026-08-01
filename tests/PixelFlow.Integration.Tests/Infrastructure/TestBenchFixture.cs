@@ -135,7 +135,41 @@ public sealed class TestBenchFixture : IDisposable
             }
 
             ShowWindow(hwnd, SwRestore);
-            SetForegroundWindow(hwnd);
+
+            // AttachThreadInput trick: SetForegroundWindow often fails for background test hosts.
+            var foreground = GetForegroundWindow();
+            var targetThread = GetWindowThreadProcessId(hwnd, out _);
+            var foregroundThread = GetWindowThreadProcessId(foreground, out _);
+            var currentThread = GetCurrentThreadId();
+            var attachedFg = false;
+            var attachedCurrent = false;
+            try
+            {
+                if (foregroundThread != 0 && foregroundThread != targetThread)
+                {
+                    attachedFg = AttachThreadInput(foregroundThread, targetThread, true);
+                }
+
+                if (currentThread != targetThread && currentThread != foregroundThread)
+                {
+                    attachedCurrent = AttachThreadInput(currentThread, targetThread, true);
+                }
+
+                BringWindowToTop(hwnd);
+                SetForegroundWindow(hwnd);
+            }
+            finally
+            {
+                if (attachedCurrent)
+                {
+                    AttachThreadInput(currentThread, targetThread, false);
+                }
+
+                if (attachedFg)
+                {
+                    AttachThreadInput(foregroundThread, targetThread, false);
+                }
+            }
         }
         catch
         {
@@ -209,4 +243,19 @@ public sealed class TestBenchFixture : IDisposable
 
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
 }

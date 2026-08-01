@@ -2,10 +2,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Test Bench"
-        Height="620"
-        Width="420"
-        WindowStartupLocation="CenterScreen">
-  <StackPanel Margin="16">
+        Height="900"
+        Width="460"
+        WindowStartupLocation="Manual">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Margin="16">
       <TextBlock x:Name="CounterLabel"
                  Text="Clicks: 0"
                  FontSize="20"
@@ -41,6 +42,11 @@
         <Border x:Name="Win32HostSlot" />
       </Border>
 
+      <TextBlock Text="WinForms (UIA / MSAA bridge)" FontWeight="SemiBold" Margin="0,0,0,6" />
+      <Border BorderBrush="#888" BorderThickness="1" Width="180" Height="36" HorizontalAlignment="Left" Margin="0,0,0,16">
+        <Border x:Name="WinFormsHostSlot" />
+      </Border>
+
       <TextBlock Text="OCR target (no AutomationId)" FontWeight="SemiBold" Margin="0,0,0,6" />
       <Button x:Name="OcrTargetButton"
               Content="OCR Target Label"
@@ -51,7 +57,7 @@
               Click="OnOcrTargetClick"
               Margin="0,0,0,16" />
 
-      <TextBlock Text="Image template target" FontWeight="SemiBold" Margin="0,0,0,6" />
+      <TextBlock Text="Image template target (64×64)" FontWeight="SemiBold" Margin="0,0,0,6" />
       <Border BorderBrush="#444" BorderThickness="1" Width="72" Height="72" HorizontalAlignment="Left" Padding="4">
         <Image x:Name="ImageTarget"
                Width="64"
@@ -61,6 +67,31 @@
                MouseLeftButtonUp="OnImageTargetClick"
                AutomationProperties.AutomationId="TbImageTarget" />
       </Border>
-      <TextBlock Text="Click the magenta icon (or run image fixture)" Opacity="0.7" FontSize="11" Margin="0,4,0,0" />
-  </StackPanel>
+      <TextBlock Text="Click the magenta icon (or run image fixture)" Opacity="0.7" FontSize="11" Margin="0,4,0,12" />
+
+      <TextBlock Text="Custom canvas (no UIA peers)" FontWeight="SemiBold" Margin="0,0,0,6" />
+      <Border x:Name="CustomCanvasSlot"
+              BorderBrush="#444"
+              BorderThickness="1"
+              Width="88"
+              Height="88"
+              HorizontalAlignment="Left"
+              Padding="4"
+              Margin="0,0,0,16" />
+
+      <TextBlock Text="Small icon grid (16×16)" FontWeight="SemiBold" Margin="0,0,0,6" />
+      <WrapPanel x:Name="IconGridPanel" Width="200" HorizontalAlignment="Left" Margin="0,0,0,4" />
+      <TextBlock Text="Lime/red L-icon is the image fixture target" Opacity="0.7" FontSize="11" Margin="0,0,0,16" />
+
+      <TextBlock Text="Moving target (re-resolve)" FontWeight="SemiBold" Margin="0,0,0,6" />
+      <Canvas x:Name="MovingTargetCanvas"
+              Width="280"
+              Height="72"
+              Background="#F0F0F0"
+              ClipToBounds="True"
+              HorizontalAlignment="Left"
+              Margin="0,0,0,8" />
+      <TextBlock Text="TbMovingTarget shifts every ~700ms — click via UIA re-resolve" Opacity="0.7" FontSize="11" Margin="0,0,0,8" />
+    </StackPanel>
+  </ScrollViewer>
 </Window>

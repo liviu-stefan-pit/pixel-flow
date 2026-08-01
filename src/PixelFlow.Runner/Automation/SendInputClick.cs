@@ -39,11 +39,17 @@ internal static class SendInputClick
             throw new InvalidOperationException("Unable to read virtual screen metrics for SendInput.");
         }
 
+        // Best-effort: foreground the top-level window under the click so WPF/WinFormsHost
+        // targets actually receive injected input (UIPI/foreground lock may still deny this).
+        TryForegroundWindowAt(x, y);
+
         var (absX, absY) = DpiCoordinates.PhysicalToSendInputAbsolute(
             x, y, virtualLeft, virtualTop, virtualWidth, virtualHeight);
 
         var inputs = new NativeMethods.Input[3];
         inputs[0] = MouseMove(absX, absY);
+        // Button events must NOT carry Absolute/VirtualDesk with dx=dy=0 — that repositions
+        // the cursor to the virtual-desktop origin before the click.
         inputs[1] = MouseButton(NativeMethods.MouseeventfLeftDown);
         inputs[2] = MouseButton(NativeMethods.MouseeventfLeftUp);
 
@@ -53,6 +59,25 @@ internal static class SendInputClick
             throw new InvalidOperationException(
                 $"SendInput failed (sent {sent}/{inputs.Length}, error={Marshal.GetLastWin32Error()}).");
         }
+    }
+
+    private static void TryForegroundWindowAt(int x, int y)
+    {
+        var point = new NativeMethods.Point { X = x, Y = y };
+        var hwnd = WindowFromPoint(point);
+        if (hwnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var root = GetAncestorRoot(hwnd);
+        if (root == 0)
+        {
+            root = hwnd;
+        }
+
+        NativeMethods.ShowWindow(root, NativeMethods.SwRestore);
+        NativeMethods.SetForegroundWindow(root);
     }
 
     public static void ClickHwnd(nint hwnd)
@@ -109,10 +134,11 @@ internal static class SendInputClick
             {
                 Mi = new NativeMethods.MouseInput
                 {
-                    DwFlags = flag
-                        | NativeMethods.MouseeventfAbsolute
-                        | NativeMethods.MouseeventfVirtualDesk,
+                    DwFlags = flag,
                 },
             },
         };
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(NativeMethods.Point pt);
 }

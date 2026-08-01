@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "name": "winforms-click",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 5000,
+    "retry": {
+      "maxAttempts": 3,
+      "backoffMs": 250
+    }
+  },
+  "steps": [
+    {
+      "id": "click-winforms",
+      "type": "Click",
+      "timeoutMs": 5000,
+      "retry": {
+        "maxAttempts": 3,
+        "backoffMs": 250
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbWinForms",
+            "controlType": "Button",
+            "name": "WinForms Click"
+          }
+        ]
+      }
+    }
+  ]
+}

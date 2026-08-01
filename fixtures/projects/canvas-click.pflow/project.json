@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "canvas-click",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 8000,
+    "retry": {
+      "maxAttempts": 3,
+      "backoffMs": 300
+    }
+  },
+  "steps": [
+    {
+      "id": "click-canvas",
+      "type": "Click",
+      "timeoutMs": 8000,
+      "retry": {
+        "maxAttempts": 3,
+        "backoffMs": 300
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "Image",
+            "enabled": true,
+            "confidenceThreshold": 0.8,
+            "imageAssetHash": "sha256-8d0dd96b66f7ec38ac65f350d81df8f375926e9754ac619a263530b942206e9f"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -27,8 +27,12 @@ public sealed class RunnerFixtureMatrixTests
     [InlineData("chain-uia-wins", "click-chain-uia", LocatorKinds.UiaStructural)]
     [InlineData("chain-win32-fallback", "click-chain-win32", LocatorKinds.Win32)]
     [InlineData("win32-click", "click-win32", LocatorKinds.Win32)]
+    [InlineData("winforms-click", "click-winforms", LocatorKinds.UiaStructural)]
     [InlineData("ocr-click", "click-ocr", LocatorKinds.Ocr)]
     [InlineData("image-click", "click-image", LocatorKinds.Image)]
+    [InlineData("canvas-click", "click-canvas", LocatorKinds.Image)]
+    [InlineData("icon-grid-click", "click-icon-grid", LocatorKinds.Image)]
+    [InlineData("moving-target-click", "click-moving", LocatorKinds.UiaStructural)]
     public async Task Fixture_Succeeds_ViaExpectedLocatorLayer(string fixtureName, string stepId, string expectedLayer)
     {
         Skip.IfNot(_bench.IsAvailable, _bench.UnavailableReason ?? "PixelFlow.TestBench unavailable.");

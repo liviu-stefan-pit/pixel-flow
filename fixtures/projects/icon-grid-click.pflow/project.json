@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "name": "icon-grid-click",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 8000,
+    "retry": {
+      "maxAttempts": 3,
+      "backoffMs": 300
+    }
+  },
+  "steps": [
+    {
+      "id": "click-icon-grid",
+      "type": "Click",
+      "timeoutMs": 8000,
+      "retry": {
+        "maxAttempts": 3,
+        "backoffMs": 300
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "Image",
+            "enabled": true,
+            "confidenceThreshold": 0.8,
+            "imageAssetHash": "sha256-d6d9761915c944ed39080f25a8196b5de81f17c7f1ce3bc2f116a87072d42852"
+          }
+        ]
+      }
+    }
+  ]
+}

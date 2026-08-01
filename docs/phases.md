@@ -56,7 +56,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P25 | Clipboard restore on type/paste | Done |
 | P26 | DPI-aware coordinates | Done |
 | P27 | Display-change invalidation | Done |
-| P28 | Broader Test Bench surfaces | Todo |
+| P28 | Broader Test Bench surfaces | Done |
 | P29 | Project trust prompt | Todo |
 | P30 | Secrets by reference | Todo |
 | P31 | Unsigned installer package | Todo |
@@ -404,7 +404,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P28 - Broader Test Bench surfaces
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** Expand Test Bench with WinForms, custom canvas, small icons, moving target (architecture Section 10 subset).
 - **In scope:** Those surfaces + scripts proving each locator path.
 - **Out of scope:** Electron/WebView2 if timeboxed; can be a follow-up note if deferred.
@@ -412,6 +412,20 @@ This is the day-to-day implementation checklist. Architecture and rationale live
   1. Each surface has at least one passing fixture script.
   2. Moving target still clicked via re-resolve.
 - **Done when:** Checklist of surfaces marked covered in this file or a short test matrix note.
+- **Surface coverage (P28):**
+
+  | Surface | Fixture | Locator path | Live test |
+  |---|---|---|---|
+  | WPF UIA (`TbSubmit`) | `click-submit` | UiaStructural | matrix + `TestBenchSurfaceCoverageTests` |
+  | Win32 native (BUTTON/1001) | `win32-click` | Win32 | matrix + surface coverage |
+  | WinForms (`TbWinForms`) | `winforms-click` | UiaStructural (MSAA bridge) | matrix + surface coverage |
+  | OCR label | `ocr-click` | Ocr | matrix + surface coverage |
+  | Image 64×64 magenta | `image-click` | Image | matrix + surface coverage |
+  | Custom canvas (no UIA peers) | `canvas-click` | Image | matrix + surface coverage |
+  | Small icon grid 16×16 | `icon-grid-click` | Image | matrix + surface coverage |
+  | Moving target (`TbMovingTarget`) | `moving-target-click` | UiaStructural + re-resolve | matrix + surface coverage |
+
+  Deferred (explicit P28 out of scope): Electron / WebView2.
 
 ## P29 - Project trust prompt
 

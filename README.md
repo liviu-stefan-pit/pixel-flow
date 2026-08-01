@@ -264,7 +264,22 @@ Live cover: `DisplayChangeInvalidationTests` (simulated `Invalidate` + CLI `disp
 dotnet run --project src/PixelFlow.TestBench/PixelFlow.TestBench.csproj
 ```
 
-Companion window with shared click counter plus WPF Submit (`TbSubmit`), Type target (`TbInput`), native Win32 button (`BUTTON` / id 1001), OCR target text, and magenta image icon.
+Companion window with shared click counter plus WPF Submit (`TbSubmit`), Type target (`TbInput`), native Win32 button (`BUTTON` / id 1001), WinForms button (`TbWinForms`), OCR target text, magenta 64×64 image icon, custom canvas (no UIA peers), 16×16 icon grid, and moving target (`TbMovingTarget`).
+
+### Test Bench surface coverage (P28)
+
+| Surface | Fixture | Path |
+|---|---|---|
+| WPF UIA | `click-submit` | UiaStructural |
+| Win32 | `win32-click` | Win32 |
+| WinForms | `winforms-click` | UiaStructural |
+| OCR | `ocr-click` | Ocr |
+| Image 64×64 | `image-click` | Image |
+| Custom canvas | `canvas-click` | Image |
+| Icon grid 16×16 | `icon-grid-click` | Image |
+| Moving target | `moving-target-click` | UiaStructural (re-resolve) |
+
+Electron/WebView2 deferred beyond P28.
 
 ## Tests
 
@@ -279,7 +294,8 @@ After every phase, agents must run **both** filters (full suite) before marking 
 - **`PixelFlow.Core.Tests`** — pure unit tests (project model, IPC schema, locator ranking, run reports, screenshot capture flag, DPI/display invalidation). No desktop/process dependency.
 - **`PixelFlow.Studio.Tests`** — Studio-facing pure-helper tests (`ImageTokenLoader` path/hash round-trips, **Last report** summary formatting). WPF types only, no window is shown.
 - **`PixelFlow.Integration.Tests`** (`Category=Live`) — launches real `PixelFlow.Runner`/`PixelFlow.TestBench` processes against a temp copy of each fixture (never dirties `fixtures/projects/*/reports/`):
-  - Full locator fixture matrix (`click-submit`, `chain-uia-wins`, `chain-win32-fallback`, `win32-click`, `ocr-click`, `image-click`, and their miss counterparts) asserting exit code + `events.jsonl` layer/outcome/confidence.
+  - Full locator fixture matrix (`click-submit`, `chain-uia-wins`, `chain-win32-fallback`, `win32-click`, `winforms-click`, `ocr-click`, `image-click`, `canvas-click`, `icon-grid-click`, `moving-target-click`, and miss counterparts) asserting exit code + `events.jsonl` layer/outcome/confidence.
+  - P28 **Test Bench surface coverage** (`TestBenchSurfaceCoverageTests`): WPF, Win32, WinForms, OCR, image, custom canvas, 16×16 icon grid, moving target.
   - Cross-phase **regression smoke** (`RegressionSmokeTests`): multi-step click+type (`smoke-click-type`), retry budget wall-time, `--resolve` hit/miss, sequential UIA→Win32→OCR on one Test Bench, Studio IPC fail-then-succeed session reuse.
   - P22 screenshot on/off assertions (PNG present + `screenshot` field vs. no PNG).
   - P23 recovery skip/jump/abort fixtures.
@@ -296,7 +312,7 @@ After every phase, agents must run **both** filters (full suite) before marking 
 | `src/PixelFlow.Core` | Shared project model, JSON, store, migrations, IPC schema, runner engine, run reports |
 | `src/PixelFlow.Runner` | Automation worker (named-pipe host, locator chain, verified click, report writer) |
 | `src/PixelFlow.Studio` | WPF editor shell (list script editor, inline image tokens, snip→assets, run/pause/stop IPC, UIA inspector, test-locator, last report) |
-| `src/PixelFlow.TestBench` | Target app for locator/integration tests (WPF + Win32 + OCR + image) |
+| `src/PixelFlow.TestBench` | Target app for locator/integration tests (WPF + Win32 + WinForms + OCR + image + canvas + icon grid + moving target) |
 | `tests/PixelFlow.Core.Tests` | Unit tests (project model, IPC, locators, run reports) |
 | `tests/PixelFlow.Studio.Tests` | Studio pure-helper unit tests (image tokens, last-report summary) |
 | `tests/PixelFlow.Integration.Tests` | Live end-to-end tests (`Category=Live`): real Runner + Test Bench + IPC |
@@ -304,4 +320,4 @@ After every phase, agents must run **both** filters (full suite) before marking 
 
 ## Status
 
-Phases **P00–P27** implemented (display-change invalidation of absolute coordinates). See [docs/phases.md](docs/phases.md).
+Phases **P00–P28** implemented (broader Test Bench surfaces). See [docs/phases.md](docs/phases.md).

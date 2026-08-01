@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using PixelFlow.Core.Projects;
 
 namespace PixelFlow.Studio;
 
@@ -35,6 +36,54 @@ public partial class MainWindow : Window
             await _session.DisposeAsync();
         };
         UpdateCommandButtons();
+    }
+
+    private void OnTestLocatorClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var layer = new LocatorLayer
+            {
+                Kind = "UiaStructural",
+                Enabled = true,
+                AutomationId = NullIfBlank(LocatorAutomationIdBox.Text),
+                ControlType = NullIfBlank(LocatorControlTypeBox.Text),
+                Name = NullIfBlank(LocatorNameBox.Text),
+            };
+
+            var scope = new ProcessWindowScope
+            {
+                ProcessName = NullIfBlank(LocatorProcessBox.Text),
+                WindowTitle = NullIfBlank(LocatorWindowBox.Text),
+            };
+
+            var result = UiaLocatorProbe.Find(layer, scope);
+            if (!result.Found)
+            {
+                var reason = result.FailureReason ?? "No match.";
+                LocatorTestResultBox.Text = "FAIL: " + reason;
+                AppendLog("Test locator FAIL: " + reason);
+                return;
+            }
+
+            var summary =
+                $"OK: layer={result.MatchedLayer}, confidence={result.Confidence:0.###}, " +
+                $"AutomationId={result.AutomationId}, Name={result.Name}, " +
+                $"bounds={result.BoundingRect}";
+            LocatorTestResultBox.Text = summary;
+            AppendLog("Test locator " + summary);
+            HighlightOverlayWindow.Flash(result.BoundingRect);
+        }
+        catch (Exception ex)
+        {
+            LocatorTestResultBox.Text = "ERROR: " + ex.Message;
+            AppendLog("Test locator ERROR: " + ex.Message);
+        }
+    }
+
+    private static string? NullIfBlank(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     private static string TryResolveProjectFolder()

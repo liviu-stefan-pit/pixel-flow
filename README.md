@@ -145,6 +145,14 @@ Resolve logs always include `layer=` and `confidence=`.
 2. Check **UIA Inspector**, hover Test Bench **Submit**.
 3. Panel shows AutomationId / Name / ControlType / bounds / process / window (hand-copy into locators).
 
+### P17 — Test this locator
+
+1. Start Test Bench.
+2. `dotnet run --project src/PixelFlow.Studio/PixelFlow.Studio.csproj`
+3. In **Test locator**, keep defaults (`TbSubmit` / `PixelFlow.TestBench`) and click **Test locator**.
+4. Result shows OK; a green highlight flashes over the Submit button (no full script run).
+5. Change AutomationId to a wrong value (e.g. `TbMissing`); Test shows FAIL with a clear reason.
+
 ## Run Test Bench
 
 ```powershell
@@ -165,11 +173,11 @@ dotnet test PixelFlow.slnx
 |---|---|
 | `src/PixelFlow.Core` | Shared project model, JSON, store, migrations, IPC schema, runner engine |
 | `src/PixelFlow.Runner` | Automation worker (named-pipe host, locator chain, verified click) |
-| `src/PixelFlow.Studio` | WPF editor shell (run/pause/stop IPC client, UIA inspector) |
+| `src/PixelFlow.Studio` | WPF editor shell (run/pause/stop IPC client, UIA inspector, test-locator) |
 | `src/PixelFlow.TestBench` | Target app for locator/integration tests (WPF + Win32 + OCR + image) |
 | `tests/PixelFlow.Core.Tests` | Unit tests |
 | `fixtures/projects` | Sample `.pflow` project bundles |
 
 ## Status
 
-Phases **P00–P16** implemented (through Win32/OCR/image locator fallbacks, chain ranking + confidence, and Studio UIA inspector). See [docs/phases.md](docs/phases.md).
+Phases **P00–P17** implemented (through author-time test-locator with highlight overlay). See [docs/phases.md](docs/phases.md).

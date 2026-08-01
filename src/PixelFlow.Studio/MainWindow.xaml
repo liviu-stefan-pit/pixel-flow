@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PixelFlow"
-        Height="640"
-        Width="920"
-        MinHeight="480"
-        MinWidth="720">
+        Height="720"
+        Width="960"
+        MinHeight="520"
+        MinWidth="780">
     <DockPanel Margin="16">
         <TextBlock DockPanel.Dock="Top"
                    Text="PixelFlow Studio"
@@ -17,7 +17,7 @@
                    TextWrapping="Wrap"
                    Opacity="0.85"
                    Margin="0,0,0,12"
-                   Text="Default project: click-submit (needs Test Bench). Override with PIXELFLOW_PROJECT_FOLDER. Pause holds BETWEEN steps only. Emergency stop: Ctrl+Shift+F12 (global, Runner). Enable UIA Inspector and hover Test Bench to read AutomationId/Name/bounds." />
+                   Text="Default project: click-submit (needs Test Bench). Override with PIXELFLOW_PROJECT_FOLDER. Pause holds BETWEEN steps only. Emergency stop: Ctrl+Shift+F12 (global, Runner). Use Test locator to validate AutomationId against the live desktop before running a script." />
 
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
             <Button x:Name="RunButton" Content="Run" Width="88" Margin="0,0,8,0" Click="OnRunClick" />
@@ -48,7 +48,7 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" MinWidth="280" />
                 <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="320" MinWidth="240" />
+                <ColumnDefinition Width="340" MinWidth="260" />
             </Grid.ColumnDefinitions>
 
             <DockPanel Grid.Column="0">
@@ -65,24 +65,96 @@
 
             <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" />
 
-            <DockPanel Grid.Column="2">
-                <TextBlock DockPanel.Dock="Top" Text="UIA Inspector" FontWeight="SemiBold" Margin="0,0,0,4" />
-                <TextBlock DockPanel.Dock="Top"
-                           TextWrapping="Wrap"
-                           Opacity="0.75"
-                           FontSize="11"
-                           Margin="0,0,0,6"
-                           Text="Check UIA Inspector, then hover any desktop element (e.g. Test Bench Submit). Properties update live — copy fields by hand into a locator." />
-                <TextBox x:Name="InspectorBox"
-                         IsReadOnly="True"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Auto"
-                         FontFamily="Consolas"
-                         FontSize="12"
-                         AcceptsReturn="True"
-                         TextWrapping="NoWrap"
-                         Text="Inspector off — enable the checkbox above." />
-            </DockPanel>
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Test locator" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBlock TextWrapping="Wrap"
+                               Opacity="0.75"
+                               FontSize="11"
+                               Margin="0,0,0,8"
+                               Text="Enter UIA structural fields and click Test. Success flashes a green highlight on the match; failure shows why." />
+
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Process" VerticalAlignment="Center" Margin="0,0,0,4" />
+                        <TextBox x:Name="LocatorProcessBox"
+                                 Grid.Row="0" Grid.Column="1"
+                                 Text="PixelFlow.TestBench"
+                                 Margin="0,0,0,4" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Window" VerticalAlignment="Center" Margin="0,0,0,4" />
+                        <TextBox x:Name="LocatorWindowBox"
+                                 Grid.Row="1" Grid.Column="1"
+                                 Text="Test Bench"
+                                 Margin="0,0,0,4" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="AutomationId" VerticalAlignment="Center" Margin="0,0,0,4" />
+                        <TextBox x:Name="LocatorAutomationIdBox"
+                                 Grid.Row="2" Grid.Column="1"
+                                 Text="TbSubmit"
+                                 Margin="0,0,0,4" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="ControlType" VerticalAlignment="Center" Margin="0,0,0,4" />
+                        <TextBox x:Name="LocatorControlTypeBox"
+                                 Grid.Row="3" Grid.Column="1"
+                                 Text="Button"
+                                 Margin="0,0,0,4" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Name" VerticalAlignment="Center" Margin="0,0,0,4" />
+                        <TextBox x:Name="LocatorNameBox"
+                                 Grid.Row="4" Grid.Column="1"
+                                 Text="Submit"
+                                 Margin="0,0,0,4" />
+                    </Grid>
+
+                    <Button x:Name="TestLocatorButton"
+                            Content="Test locator"
+                            HorizontalAlignment="Left"
+                            Padding="12,4"
+                            Margin="0,0,0,8"
+                            Click="OnTestLocatorClick" />
+
+                    <TextBox x:Name="LocatorTestResultBox"
+                             IsReadOnly="True"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             MinHeight="56"
+                             MaxHeight="120"
+                             VerticalScrollBarVisibility="Auto"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             Margin="0,0,0,16"
+                             Text="Result appears here after Test." />
+
+                    <TextBlock Text="UIA Inspector" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <TextBlock TextWrapping="Wrap"
+                               Opacity="0.75"
+                               FontSize="11"
+                               Margin="0,0,0,6"
+                               Text="Check UIA Inspector above, then hover any desktop element (e.g. Test Bench Submit). Copy fields into the Test locator form." />
+                    <TextBox x:Name="InspectorBox"
+                             IsReadOnly="True"
+                             MinHeight="180"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             AcceptsReturn="True"
+                             TextWrapping="NoWrap"
+                             Text="Inspector off — enable the checkbox above." />
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
     </DockPanel>
 </Window>

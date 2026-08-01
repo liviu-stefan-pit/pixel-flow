@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PixelFlow User Guide — Attended Windows Automation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #1a211c;
+      --muted: #4a564f;
+      --paper: #f3efe6;
+      --panel: #fffdf8;
+      --line: #d4cdc0;
+      --accent: #0f6b5c;
+      --accent-deep: #0a473e;
+      --warm: #c45c26;
+      --code-bg: #1e2622;
+      --code-fg: #e8efe9;
+      --ok: #1f7a4c;
+      --warn: #9a6b12;
+      --danger: #9b2c2c;
+      --shadow: 0 18px 50px rgba(26, 33, 28, 0.08);
+      --radius: 14px;
+      --max: 72rem;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      line-height: 1.65;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #dfece6 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #f0e2d2 0%, transparent 50%),
+        linear-gradient(180deg, #ebe4d6 0%, var(--paper) 28%, #e7e1d4 100%);
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent-deep); text-underline-offset: 0.18em; }
+    a:hover { color: var(--warm); }
+
+    .wrap { width: min(100% - 2rem, var(--max)); margin-inline: auto; }
+
+    /* Hero */
+    .hero {
+      padding: 4.5rem 0 3rem;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -40% 40%;
+      height: 28rem;
+      background:
+        repeating-linear-gradient(
+          -18deg,
+          transparent,
+          transparent 12px,
+          rgba(15, 107, 92, 0.05) 12px,
+          rgba(15, 107, 92, 0.05) 13px
+        );
+      pointer-events: none;
+    }
+    .brand {
+      font-family: Fraunces, Georgia, serif;
+      font-size: clamp(2.8rem, 7vw, 4.6rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      margin: 0 0 0.75rem;
+    }
+    .hero-lead {
+      font-size: 1.2rem;
+      color: var(--muted);
+      max-width: 40rem;
+      margin: 0 0 1.75rem;
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 253, 248, 0.8);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .chip strong { color: var(--ink); font-weight: 600; }
+
+    /* Layout */
+    .layout {
+      display: grid;
+      grid-template-columns: 15.5rem 1fr;
+      gap: 2.5rem;
+      padding: 2.5rem 0 5rem;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      nav.toc { position: static !important; }
+    }
+
+    nav.toc {
+      position: sticky;
+      top: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 253, 248, 0.92);
+      backdrop-filter: blur(8px);
+      box-shadow: var(--shadow);
+    }
+    nav.toc h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 0 0 0.75rem;
+    }
+    nav.toc ol {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 0.35rem;
+    }
+    nav.toc a {
+      text-decoration: none;
+      color: var(--muted);
+      font-size: 0.92rem;
+      display: block;
+      padding: 0.25rem 0.4rem;
+      border-radius: 6px;
+    }
+    nav.toc a:hover { background: #eef5f2; color: var(--accent-deep); }
+
+    main section {
+      margin-bottom: 3.25rem;
+      scroll-margin-top: 1.25rem;
+    }
+    main h2 {
+      font-family: Fraunces, Georgia, serif;
+      font-size: clamp(1.7rem, 3vw, 2.2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.85rem;
+      padding-bottom: 0.45rem;
+      border-bottom: 2px solid var(--accent);
+      display: inline-block;
+    }
+    main h3 {
+      font-family: Fraunces, Georgia, serif;
+      font-size: 1.35rem;
+      margin: 1.75rem 0 0.6rem;
+    }
+    main h4 {
+      margin: 1.25rem 0 0.4rem;
+      font-size: 1.02rem;
+    }
+    p { margin: 0 0 1rem; }
+    ul, ol { margin: 0 0 1rem; padding-left: 1.25rem; }
+    li { margin: 0.3rem 0; }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 1.15rem 1.25rem;
+      box-shadow: var(--shadow);
+      margin: 1rem 0 1.25rem;
+    }
+    .panel.tip { border-left: 4px solid var(--accent); }
+    .panel.warn { border-left: 4px solid var(--warn); }
+    .panel.danger { border-left: 4px solid var(--danger); }
+    .panel .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      margin: 0.75rem 0 1.25rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.7rem 0.85rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    th {
+      background: #e9f2ee;
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--accent-deep);
+    }
+    tr:last-child td { border-bottom: 0; }
+    code, kbd {
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 0.88em;
+    }
+    kbd {
+      display: inline-block;
+      padding: 0.1rem 0.4rem;
+      border: 1px solid var(--line);
+      border-bottom-width: 2px;
+      border-radius: 5px;
+      background: #fff;
+    }
+    pre {
+      margin: 0.75rem 0 1.25rem;
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      background: var(--code-bg);
+      color: var(--code-fg);
+      border-radius: 12px;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 0.84rem;
+      line-height: 1.55;
+      box-shadow: var(--shadow);
+    }
+    pre .c { color: #8fa89a; }
+    pre .k { color: #7ec8b8; }
+    pre .s { color: #e6b078; }
+    pre .n { color: #d7dee0; }
+
+    .steps {
+      counter-reset: how;
+      list-style: none;
+      padding: 0;
+      display: grid;
+      gap: 0.85rem;
+    }
+    .steps > li {
+      position: relative;
+      padding: 1rem 1rem 1rem 3.4rem;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    .steps > li::before {
+      counter-increment: how;
+      content: counter(how);
+      position: absolute;
+      left: 0.9rem;
+      top: 0.95rem;
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: grid;
+      place-items: center;
+    }
+
+    .example {
+      margin: 1.5rem 0 2rem;
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 2px);
+      overflow: hidden;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .example-head {
+      padding: 1rem 1.25rem;
+      background:
+        linear-gradient(135deg, #0f6b5c 0%, #186a4f 55%, #2f5d4a 100%);
+      color: #f4faf7;
+    }
+    .example-head h3 {
+      margin: 0 0 0.35rem;
+      color: inherit;
+      font-size: 1.35rem;
+    }
+    .example-head p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+    .example-body { padding: 1.15rem 1.25rem 1.35rem; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 1rem; }
+    .tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      background: #e7f3ee;
+      color: var(--accent-deep);
+    }
+    .tag.alt { background: #f7ebe3; color: #8a3d12; }
+    .tag.muted { background: #eceae4; color: var(--muted); }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 2rem 0 3rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <p class="brand">PixelFlow</p>
+      <p class="hero-lead">
+        An in-depth guide to attended Windows desktop automation: what PixelFlow can do,
+        how to author reliable locator chains, and three concrete end-to-end examples
+        against Calculator, Notepad, and a resilient multi-layer fallback project.
+      </p>
+      <div class="hero-meta">
+        <span class="chip"><strong>Stack</strong> .NET 10 · WPF · UIA</span>
+        <span class="chip"><strong>Mode</strong> Attended / interactive desktop</span>
+        <span class="chip"><strong>Schema</strong> project.json v1</span>
+        <span class="chip"><strong>Hotkey</strong> Ctrl+Shift+F12 emergency stop</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap layout">
+    <nav class="toc" aria-label="Table of contents">
+      <h2>On this page</h2>
+      <ol>
+        <li><a href="#what">What it can do</a></li>
+        <li><a href="#architecture">Studio &amp; Runner</a></li>
+        <li><a href="#project">Project model</a></li>
+        <li><a href="#locators">Locator techniques</a></li>
+        <li><a href="#workflow">How to use it</a></li>
+        <li><a href="#safety">Safety &amp; limits</a></li>
+        <li><a href="#ex1">Example 1 · Calculator</a></li>
+        <li><a href="#ex2">Example 2 · Notepad</a></li>
+        <li><a href="#ex3">Example 3 · Fallback chain</a></li>
+        <li><a href="#diagnose">Diagnosing runs</a></li>
+        <li><a href="#install">Install &amp; CLI</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <section id="what">
+        <h2>What PixelFlow can do</h2>
+        <p>
+          PixelFlow is a Windows <strong>attended RPA studio</strong>: you author a human-readable
+          automation project, then a separate Runner process drives real UI elements on your
+          unlocked desktop. It is built for reliability under UI drift — timing variance,
+          DPI changes, window movement — and is designed to <em>fail loudly</em> rather than
+          click the wrong thing.
+        </p>
+
+        <div class="grid-2">
+          <div class="panel tip">
+            <div class="label">In scope for v1</div>
+            <ul>
+              <li>Click, Type, and Wait steps against desktop apps</li>
+              <li>Ordered locator chains: UIA → Win32 → OCR → Image</li>
+              <li>Bounded retries, recovery (skip / jump / abort)</li>
+              <li>Secrets by reference (Credential Manager)</li>
+              <li>Run reports (JSONL) and opt-in failure screenshots</li>
+              <li>Pause / resume, emergency stop, interference pause</li>
+            </ul>
+          </div>
+          <div class="panel warn">
+            <div class="label">Not magic — know the edges</div>
+            <ul>
+              <li>UAC / secure desktop / lock screen are not automatable</li>
+              <li>Elevated (admin) windows are blocked by UIPI in v1</li>
+              <li>No unattended / scheduled / locked-session runs</li>
+              <li>No embedded C# / Python / JS in projects</li>
+              <li>Step types today: <code>Wait</code>, <code>Click</code>, <code>Type</code> only</li>
+            </ul>
+          </div>
+        </div>
+
+        <p>
+          Target technologies that work well: WPF, WinForms, Win32/MFC, UWP/WinUI (including
+          modern Calculator), Chromium/Electron where accessibility is exposed. Custom-drawn
+          canvases fall back to OCR or image matching.
+        </p>
+      </section>
+
+      <section id="architecture">
+        <h2>Studio and Runner</h2>
+        <p>
+          PixelFlow deliberately splits into <strong>two OS processes</strong> so a hung target
+          app cannot freeze the editor, and so a project never runs with the editor’s full
+          file/credential surface.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Process</th><th>Owns</th><th>Does not own</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Studio</strong></td>
+              <td>Project files, list editor, snipping, UIA inspector, test-locator, trust prompt, report summary, Run/Pause/Stop IPC</td>
+              <td>SendInput, live locator resolution during a run, Credential Manager secret values</td>
+            </tr>
+            <tr>
+              <td><strong>Runner</strong></td>
+              <td>Locator chain, retries, verified input, clipboard restore, emergency hotkey, JSONL reports, secret resolve</td>
+              <td>Project editing UI</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="panel tip">
+          <div class="label">Rule of thumb</div>
+          Author and validate locators in Studio. Let Runner be the only process that touches
+          the target UI during a run. If something feels flaky, fix the locator chain — do not
+          lengthen waits forever.
+        </div>
+      </section>
+
+      <section id="project">
+        <h2>Project model</h2>
+        <p>
+          A project is a folder ending in <code>.pflow</code>. The canonical truth is
+          <code>project.json</code> — not the visual editor state.
+        </p>
+<pre><span class="c">my-flow.pflow/</span>
+  <span class="n">project.json</span>          <span class="c"># schema, steps, locators, retries</span>
+  <span class="n">assets/</span>               <span class="c"># sha256-&lt;hash&gt;.png snips</span>
+  <span class="n">history/</span>              <span class="c"># rolling backups on save</span>
+  <span class="n">reports/run-…/</span>        <span class="c"># events.jsonl (+ optional PNGs)</span></pre>
+
+        <h3>Step types</h3>
+        <table>
+          <thead>
+            <tr><th>type</th><th>Purpose</th><th>Key fields</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Wait</code></td>
+              <td>Pause between actions (also a natural pause/resume boundary)</td>
+              <td><code>waitMs</code></td>
+            </tr>
+            <tr>
+              <td><code>Click</code></td>
+              <td>Resolve a target, re-check, then click</td>
+              <td><code>locator</code></td>
+            </tr>
+            <tr>
+              <td><code>Type</code></td>
+              <td>Focus a field and paste text (clipboard snapshot/restore)</td>
+              <td><code>locator</code>, <code>text</code> or <code>secretRef</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Defaults that keep runs bounded</h3>
+        <ul>
+          <li><code>defaults.timeoutMs</code> — per-attempt resolve poll budget (default 5000)</li>
+          <li><code>defaults.retry.maxAttempts</code> / <code>backoffMs</code> — finite retry budget</li>
+          <li><code>defaults.captureFailureScreenshots</code> — off by default (privacy)</li>
+          <li>Per-step <code>recovery</code>: <code>Skip</code>, <code>Jump</code> (to step <code>id</code>), or <code>Abort</code></li>
+        </ul>
+      </section>
+
+      <section id="locators">
+        <h2>Locator techniques (all layers)</h2>
+        <p>
+          Every Click/Type step resolves through an <strong>ordered chain</strong> scoped to a
+          process (and optional window title). The Runner stops at the first <em>enabled</em>
+          layer whose confidence meets its threshold, and records the winning layer in the report.
+        </p>
+        <table>
+          <thead>
+            <tr><th>#</th><th>kind</th><th>When to use</th><th>Primary fields</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><code>UiaStructural</code></td>
+              <td>Best default. Stable AutomationId + ControlType + Name</td>
+              <td><code>automationId</code>, <code>controlType</code>, <code>name</code></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><code>UiaSemantic</code></td>
+              <td>Apps that expose Name/ControlType but omit AutomationId</td>
+              <td><code>name</code>, <code>controlType</code> (no AutomationId)</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><code>Win32</code></td>
+              <td>Legacy controls with weak UIA (class + control ID)</td>
+              <td><code>windowClass</code>, <code>controlId</code></td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><code>Ocr</code></td>
+              <td>Visible text with no useful accessibility tree</td>
+              <td><code>text</code> (fuzzy-matched)</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><code>Image</code></td>
+              <td>Icons / custom-drawn UI — last resort</td>
+              <td><code>imageAssetHash</code> (from Snip)</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="panel tip">
+          <div class="label">Authoring discipline</div>
+          Prefer UIA. Keep OCR/Image as fallbacks in the same chain, not as your first layer,
+          unless the control truly has no accessibility. Always set
+          <code>locator.scope.processName</code> so you never match the wrong app instance.
+        </div>
+      </section>
+
+      <section id="workflow">
+        <h2>How to use it properly</h2>
+        <ol class="steps">
+          <li>
+            <strong>Install or build.</strong> Packaged install:
+            <code>.\scripts\pack.ps1</code> then <code>.\scripts\install.ps1</code>
+            (needs .NET 10 Desktop Runtime). Or run Studio from source with
+            <code>dotnet run --project src/PixelFlow.Studio</code>.
+          </li>
+          <li>
+            <strong>Open the target app</strong> on an unlocked interactive desktop
+            (Calculator, Notepad, your app). PixelFlow will not fight a lock screen or UAC prompt.
+          </li>
+          <li>
+            <strong>Create a project.</strong> In Studio: New → Save into a
+            <code>something.pflow</code> folder. Accept the <strong>trust prompt</strong> when asked —
+            untrusted projects can be edited but cannot Run.
+          </li>
+          <li>
+            <strong>Inspect before you guess.</strong> Enable <em>UIA Inspector</em>, hover the
+            control, copy AutomationId / Name / ControlType / process name into the step.
+            Use <em>Test locator</em> to highlight the live match without running the whole script.
+          </li>
+          <li>
+            <strong>Author the shortest reliable chain.</strong> Start with one UIA layer.
+            Add Win32 / OCR / Image only when higher layers fail on purpose. Snip images into
+            <code>assets/</code> when you need the Image layer.
+          </li>
+          <li>
+            <strong>Bound time.</strong> Keep <code>timeoutMs</code> and
+            <code>retry.maxAttempts</code> finite. Prefer recovery steps over “retry forever.”
+          </li>
+          <li>
+            <strong>Run with an escape hatch.</strong> Memorize
+            <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F12</kbd> (global emergency abort).
+            If you wiggle the mouse mid-action, Runner may pause for interference — Resume when ready.
+          </li>
+          <li>
+            <strong>Read the report.</strong> Open <em>Last report</em> or
+            <code>reports/run-*/events.jsonl</code>. Check which <code>layer=</code> won and why a step failed.
+          </li>
+        </ol>
+
+        <h3>Type steps and secrets</h3>
+        <p>
+          Type focuses the locator target and pastes via the clipboard, then
+          <strong>always restores</strong> the previous clipboard contents.
+          For credentials, set <code>secretRef</code> to a Windows Credential Manager
+          <em>Generic</em> target name (for example <code>PixelFlow/MyLogin</code>).
+          The secret value never appears in <code>project.json</code> or run reports.
+        </p>
+      </section>
+
+      <section id="safety">
+        <h2>Safety model and limitations</h2>
+        <ul>
+          <li><strong>Projects are executable content.</strong> Trust is remembered under
+            <code>%LocalAppData%\PixelFlow\trusted-projects.json</code>.</li>
+          <li><strong>No arbitrary code execution</strong> inside a project file.</li>
+          <li><strong>Emergency stop</strong> and <strong>user-interference pause</strong> exist so automation yields to the human.</li>
+          <li><strong>Click post-check</strong> in the current live Runner path is tightly coupled to the PixelFlow Test Bench click counter.
+            When automating Calculator/Notepad, treat “resolved + clicked without wrong-target guesses” as success, and assert outcomes yourself (display text, file contents) until general post-conditions land.</li>
+        </ul>
+        <div class="panel danger">
+          <div class="label">Do not expect these to work</div>
+          Automating through UAC consent, the login/lock screen, DRM-protected surfaces, or
+          elevated admin windows from a standard-integrity PixelFlow process.
+        </div>
+      </section>
+
+      <!-- ========== EXAMPLE 1 ========== -->
+      <section id="ex1">
+        <div class="example">
+          <div class="example-head">
+            <h3>Example 1 — Calculator: 7 + 5 = 12</h3>
+            <p>Primary technique: UIA structural locators on Windows Calculator (WinUI / UWP).</p>
+          </div>
+          <div class="example-body">
+            <div class="tag-row">
+              <span class="tag">UiaStructural</span>
+              <span class="tag muted">Click</span>
+              <span class="tag muted">Wait</span>
+              <span class="tag alt">Windows Calculator</span>
+            </div>
+
+            <h4>Goal</h4>
+            <p>
+              Launch Calculator yourself, then run a PixelFlow project that clicks
+              <strong>7</strong>, <strong>+</strong>, <strong>5</strong>, <strong>=</strong>.
+              Modern Calculator exposes stable AutomationIds such as
+              <code>num7Button</code>, <code>plusButton</code>, <code>num5Button</code>,
+              <code>equalButton</code>.
+            </p>
+
+            <h4>Authoring steps in Studio</h4>
+            <ol>
+              <li>Start <strong>Calculator</strong> (Start → Calculator).</li>
+              <li>Studio → New → Save as <code>calc-add.pflow</code>. Trust the folder.</li>
+              <li>Enable UIA Inspector; hover <strong>7</strong>. Confirm AutomationId
+                <code>num7Button</code>, ControlType <code>Button</code>, process roughly
+                <code>CalculatorApp</code> (Windows 10/11 may show
+                <code>ApplicationFrameHost</code> for the frame — use the process name the inspector reports).</li>
+              <li>Add four <strong>Click</strong> steps (optionally short Waits between them).</li>
+              <li>Use <em>Test locator</em> on each button before Run.</li>
+            </ol>
+
+            <h4>Complete <code>project.json</code></h4>
+<pre>{
+  <span class="k">"schemaVersion"</span>: <span class="n">1</span>,
+  <span class="k">"name"</span>: <span class="s">"calc-add"</span>,
+  <span class="k">"variables"</span>: {},
+  <span class="k">"defaults"</span>: {
+    <span class="k">"timeoutMs"</span>: <span class="n">5000</span>,
+    <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">250</span> },
+    <span class="k">"captureFailureScreenshots"</span>: <span class="n">false</span>
+  },
+  <span class="k">"steps"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"press-7"</span>,
+      <span class="k">"type"</span>: <span class="s">"Click"</span>,
+      <span class="k">"timeoutMs"</span>: <span class="n">5000</span>,
+      <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">250</span> },
+      <span class="k">"locator"</span>: {
+        <span class="k">"scope"</span>: {
+          <span class="k">"processName"</span>: <span class="s">"CalculatorApp"</span>,
+          <span class="k">"windowTitle"</span>: <span class="s">"Calculator"</span>
+        },
+        <span class="k">"layers"</span>: [{
+          <span class="k">"kind"</span>: <span class="s">"UiaStructural"</span>,
+          <span class="k">"enabled"</span>: <span class="n">true</span>,
+          <span class="k">"confidenceThreshold"</span>: <span class="n">0.9</span>,
+          <span class="k">"automationId"</span>: <span class="s">"num7Button"</span>,
+          <span class="k">"controlType"</span>: <span class="s">"Button"</span>,
+          <span class="k">"name"</span>: <span class="s">"Seven"</span>
+        }]
+      }
+    },
+    {
+      <span class="k">"id"</span>: <span class="s">"press-plus"</span>,
+      <span class="k">"type"</span>: <span class="s">"Click"</span>,
+      <span class="k">"timeoutMs"</span>: <span class="n">5000</span>,
+      <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">250</span> },
+      <span class="k">"locator"</span>: {
+        <span class="k">"scope"</span>: { <span class="k">"processName"</span>: <span class="s">"CalculatorApp"</span>, <span class="k">"windowTitle"</span>: <span class="s">"Calculator"</span> },
+        <span class="k">"layers"</span>: [{
+          <span class="k">"kind"</span>: <span class="s">"UiaStructural"</span>,
+          <span class="k">"enabled"</span>: <span class="n">true</span>,
+          <span class="k">"confidenceThreshold"</span>: <span class="n">0.9</span>,
+          <span class="k">"automationId"</span>: <span class="s">"plusButton"</span>,
+          <span class="k">"controlType"</span>: <span class="s">"Button"</span>,
+          <span class="k">"name"</span>: <span class="s">"Plus"</span>
+        }]
+      }
+    },
+    {
+      <span class="k">"id"</span>: <span class="s">"press-5"</span>,
+      <span class="k">"type"</span>: <span class="s">"Click"</span>,
+      <span class="k">"timeoutMs"</span>: <span class="n">5000</span>,
+      <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">250</span> },
+      <span class="k">"locator"</span>: {
+        <span class="k">"scope"</span>: { <span class="k">"processName"</span>: <span class="s">"CalculatorApp"</span>, <span class="k">"windowTitle"</span>: <span class="s">"Calculator"</span> },
+        <span class="k">"layers"</span>: [{
+          <span class="k">"kind"</span>: <span class="s">"UiaStructural"</span>,
+          <span class="k">"enabled"</span>: <span class="n">true</span>,
+          <span class="k">"confidenceThreshold"</span>: <span class="n">0.9</span>,
+          <span class="k">"automationId"</span>: <span class="s">"num5Button"</span>,
+          <span class="k">"controlType"</span>: <span class="s">"Button"</span>,
+          <span class="k">"name"</span>: <span class="s">"Five"</span>
+        }]
+      }
+    },
+    {
+      <span class="k">"id"</span>: <span class="s">"press-equals"</span>,
+      <span class="k">"type"</span>: <span class="s">"Click"</span>,
+      <span class="k">"timeoutMs"</span>: <span class="n">5000</span>,
+      <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">250</span> },
+      <span class="k">"locator"</span>: {
+        <span class="k">"scope"</span>: { <span class="k">"processName"</span>: <span class="s">"CalculatorApp"</span>, <span class="k">"windowTitle"</span>: <span class="s">"Calculator"</span> },
+        <span class="k">"layers"</span>: [{
+          <span class="k">"kind"</span>: <span class="s">"UiaStructural"</span>,
+          <span class="k">"enabled"</span>: <span class="n">true</span>,
+          <span class="k">"confidenceThreshold"</span>: <span class="n">0.9</span>,
+          <span class="k">"automationId"</span>: <span class="s">"equalButton"</span>,
+          <span class="k">"controlType"</span>: <span class="s">"Button"</span>,
+          <span class="k">"name"</span>: <span class="s">"Equals"</span>
+        }]
+      }
+    }
+  ]
+}</pre>
+            <div class="panel warn">
+              <div class="label">Localization &amp; process name</div>
+              Button <code>name</code> strings follow the OS language (“Seven” vs localized text).
+              Prefer AutomationId when present. Always copy <code>processName</code> from the
+              Studio inspector on <em>your</em> machine — do not hard-code from memory if Test locator fails.
+            </div>
+
+            <h4>Run</h4>
+<pre>dotnet run --project src/PixelFlow.Runner -- --run-project path\to\calc-add.pflow
+<span class="c"># or open the folder in Studio and click Run</span></pre>
+            <p>
+              Expected: Calculator display shows <strong>12</strong>. Report events should show
+              <code>layer=UiaStructural</code> for each click.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== EXAMPLE 2 ========== -->
+      <section id="ex2">
+        <div class="example">
+          <div class="example-head">
+            <h3>Example 2 — Notepad: type a note, then click File</h3>
+            <p>Techniques: UIA structural + UIA semantic, Type with clipboard restore, Wait, optional secretRef.</p>
+          </div>
+          <div class="example-body">
+            <div class="tag-row">
+              <span class="tag">UiaStructural</span>
+              <span class="tag">UiaSemantic</span>
+              <span class="tag muted">Type</span>
+              <span class="tag muted">Wait</span>
+              <span class="tag alt">Notepad</span>
+            </div>
+
+            <h4>Goal</h4>
+            <p>
+              Automate classic or modern Notepad: focus the editor, type a sentence, wait,
+              then click the <strong>File</strong> menu via a semantic name match (menus often
+              lack a convenient AutomationId). Demonstrates Type’s clipboard restore and a
+              two-layer locator style.
+            </p>
+
+            <h4>Authoring steps</h4>
+            <ol>
+              <li>Open <strong>Notepad</strong>.</li>
+              <li>Inspector → hover the large edit surface. Note AutomationId (often
+                <code>15</code> on classic Win32 Notepad, or a WinUI id on modern Notepad) and
+                ControlType <code>Edit</code> / <code>Document</code>.</li>
+              <li>Add a <strong>Type</strong> step with plaintext, or set <code>secretRef</code>
+                if the payload is sensitive.</li>
+              <li>Add a short <strong>Wait</strong>.</li>
+              <li>Add a <strong>Click</strong> on File using <code>UiaSemantic</code>
+                (<code>name: "File"</code>, <code>controlType: "MenuItem"</code>) with an optional
+                structural layer first if an AutomationId exists.</li>
+            </ol>
+
+            <h4>Complete <code>project.json</code></h4>
+<pre>{
+  <span class="k">"schemaVersion"</span>: <span class="n">1</span>,
+  <span class="k">"name"</span>: <span class="s">"notepad-type-file"</span>,
+  <span class="k">"variables"</span>: {},
+  <span class="k">"defaults"</span>: {
+    <span class="k">"timeoutMs"</span>: <span class="n">6000</span>,
+    <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">300</span> }
+  },
+  <span class="k">"steps"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"type-body"</span>,
+      <span class="k">"type"</span>: <span class="s">"Type"</span>,
+      <span class="k">"timeoutMs"</span>: <span class="n">6000</span>,
+      <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">300</span> },
+      <span class="k">"text"</span>: <span class="s">"PixelFlow typed this note at attended desktop time."</span>,
+      <span class="k">"locator"</span>: {
+        <span class="k">"scope"</span>: {
+          <span class="k">"processName"</span>: <span class="s">"Notepad"</span>,
+          <span class="k">"windowTitle"</span>: <span class="s">"Untitled - Notepad"</span>
+        },
+        <span class="k">"layers"</span>: [
+          {
+            <span class="k">"kind"</span>: <span class="s">"UiaStructural"</span>,
+            <span class="k">"enabled"</span>: <span class="n">true</span>,
+            <span class="k">"confidenceThreshold"</span>: <span class="n">0.9</span>,
+            <span class="k">"automationId"</span>: <span class="s">"15"</span>,
+            <span class="k">"controlType"</span>: <span class="s">"Edit"</span>,
+            <span class="k">"name"</span>: <span class="s">"Text Editor"</span>
+          },
+          {
+            <span class="k">"kind"</span>: <span class="s">"UiaSemantic"</span>,
+            <span class="k">"enabled"</span>: <span class="n">true</span>,
+            <span class="k">"confidenceThreshold"</span>: <span class="n">0.85</span>,
+            <span class="k">"controlType"</span>: <span class="s">"Edit"</span>,
+            <span class="k">"name"</span>: <span class="s">"Text Editor"</span>
+          }
+        ]
+      }
+    },
+    {
+      <span class="k">"id"</span>: <span class="s">"pause"</span>,
+      <span class="k">"type"</span>: <span class="s">"Wait"</span>,
+      <span class="k">"waitMs"</span>: <span class="n">400</span>
+    },
+    {
+      <span class="k">"id"</span>: <span class="s">"click-file"</span>,
+      <span class="k">"type"</span>: <span class="s">"Click"</span>,
+      <span class="k">"timeoutMs"</span>: <span class="n">6000</span>,
+      <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">300</span> },
+      <span class="k">"locator"</span>: {
+        <span class="k">"scope"</span>: {
+          <span class="k">"processName"</span>: <span class="s">"Notepad"</span>,
+          <span class="k">"windowTitle"</span>: <span class="s">"Untitled - Notepad"</span>
+        },
+        <span class="k">"layers"</span>: [
+          {
+            <span class="k">"kind"</span>: <span class="s">"UiaSemantic"</span>,
+            <span class="k">"enabled"</span>: <span class="n">true</span>,
+            <span class="k">"confidenceThreshold"</span>: <span class="n">0.85</span>,
+            <span class="k">"controlType"</span>: <span class="s">"MenuItem"</span>,
+            <span class="k">"name"</span>: <span class="s">"File"</span>
+          }
+        ]
+      }
+    }
+  ]
+}</pre>
+
+            <div class="panel tip">
+              <div class="label">Clipboard &amp; secrets</div>
+              Copy something known (for example <code>CLIP-BEFORE</code>) before Run. After the
+              Type step finishes, your clipboard should still be <code>CLIP-BEFORE</code> —
+              PixelFlow restores it even if the paste path fails mid-step.
+              For sensitive payloads, replace <code>text</code> with
+              <code>"secretRef": "PixelFlow/DemoNote"</code> (Generic credential in Credential Manager)
+              and omit plaintext from the JSON.
+            </div>
+
+            <h4>Modern Notepad note</h4>
+            <p>
+              Windows 11 Notepad may run as <code>Notepad</code> with different AutomationIds and
+              a title like <code>Untitled — Notepad</code>. Always verify with Inspector + Test locator.
+              If UIA is thin on a control, keep the semantic layer enabled as shown.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== EXAMPLE 3 ========== -->
+      <section id="ex3">
+        <div class="example">
+          <div class="example-head">
+            <h3>Example 3 — Resilient Calculator equals with every fallback</h3>
+            <p>One Click step that teaches the full chain: UIA → Win32 → OCR → Image, plus recovery.</p>
+          </div>
+          <div class="example-body">
+            <div class="tag-row">
+              <span class="tag">UiaStructural</span>
+              <span class="tag">Win32</span>
+              <span class="tag">Ocr</span>
+              <span class="tag">Image</span>
+              <span class="tag muted">Recovery</span>
+              <span class="tag alt">Calculator</span>
+            </div>
+
+            <h4>Goal</h4>
+            <p>
+              Click Calculator’s <strong>Equals</strong> control using a full locator chain.
+              On a healthy Windows 11 Calculator, layer 1 (UIA) wins. The remaining layers are
+              present so you can <em>break</em> higher layers during practice and watch the
+              report fall through — the same pattern you will need for legacy or custom-drawn UI.
+            </p>
+
+            <h4>Prepare assets</h4>
+            <ol>
+              <li>Open Calculator; Studio open on <code>calc-equals-chain.pflow</code>.</li>
+              <li>Select a Click step → <strong>Snip</strong> a tight rectangle around the
+                <strong>=</strong> key only. Studio stores
+                <code>assets/sha256-….png</code> and can attach an Image layer automatically.</li>
+              <li>Copy the hash into the Image layer below (or keep the Studio-authored token).</li>
+              <li>Optional Win32 layer: only useful if Inspector / Spy++ shows a real
+                <code>BUTTON</code> + control id. Modern Calculator usually will <em>not</em> —
+                leave it disabled or omit it; it is shown here for completeness on Win32-friendly apps.</li>
+            </ol>
+
+            <h4>Complete <code>project.json</code></h4>
+<pre>{
+  <span class="k">"schemaVersion"</span>: <span class="n">1</span>,
+  <span class="k">"name"</span>: <span class="s">"calc-equals-chain"</span>,
+  <span class="k">"variables"</span>: {},
+  <span class="k">"defaults"</span>: {
+    <span class="k">"timeoutMs"</span>: <span class="n">8000</span>,
+    <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">300</span> },
+    <span class="k">"captureFailureScreenshots"</span>: <span class="n">true</span>
+  },
+  <span class="k">"steps"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"warmup-wait"</span>,
+      <span class="k">"type"</span>: <span class="s">"Wait"</span>,
+      <span class="k">"waitMs"</span>: <span class="n">500</span>
+    },
+    {
+      <span class="k">"id"</span>: <span class="s">"click-equals"</span>,
+      <span class="k">"type"</span>: <span class="s">"Click"</span>,
+      <span class="k">"timeoutMs"</span>: <span class="n">8000</span>,
+      <span class="k">"retry"</span>: { <span class="k">"maxAttempts"</span>: <span class="n">3</span>, <span class="k">"backoffMs"</span>: <span class="n">300</span> },
+      <span class="k">"captureFailureScreenshot"</span>: <span class="n">true</span>,
+      <span class="k">"recovery"</span>: {
+        <span class="k">"action"</span>: <span class="s">"Abort"</span>
+      },
+      <span class="k">"locator"</span>: {
+        <span class="k">"scope"</span>: {
+          <span class="k">"processName"</span>: <span class="s">"CalculatorApp"</span>,
+          <span class="k">"windowTitle"</span>: <span class="s">"Calculator"</span>
+        },
+        <span class="k">"layers"</span>: [
+          {
+            <span class="k">"kind"</span>: <span class="s">"UiaStructural"</span>,
+            <span class="k">"enabled"</span>: <span class="n">true</span>,
+            <span class="k">"confidenceThreshold"</span>: <span class="n">0.9</span>,
+            <span class="k">"automationId"</span>: <span class="s">"equalButton"</span>,
+            <span class="k">"controlType"</span>: <span class="s">"Button"</span>,
+            <span class="k">"name"</span>: <span class="s">"Equals"</span>
+          },
+          {
+            <span class="k">"kind"</span>: <span class="s">"UiaSemantic"</span>,
+            <span class="k">"enabled"</span>: <span class="n">true</span>,
+            <span class="k">"confidenceThreshold"</span>: <span class="n">0.85</span>,
+            <span class="k">"controlType"</span>: <span class="s">"Button"</span>,
+            <span class="k">"name"</span>: <span class="s">"Equals"</span>
+          },
+          {
+            <span class="k">"kind"</span>: <span class="s">"Win32"</span>,
+            <span class="k">"enabled"</span>: <span class="n">false</span>,
+            <span class="k">"confidenceThreshold"</span>: <span class="n">0.9</span>,
+            <span class="k">"windowClass"</span>: <span class="s">"BUTTON"</span>,
+            <span class="k">"controlId"</span>: <span class="n">1</span>
+          },
+          {
+            <span class="k">"kind"</span>: <span class="s">"Ocr"</span>,
+            <span class="k">"enabled"</span>: <span class="n">true</span>,
+            <span class="k">"confidenceThreshold"</span>: <span class="n">0.7</span>,
+            <span class="k">"text"</span>: <span class="s">"="</span>
+          },
+          {
+            <span class="k">"kind"</span>: <span class="s">"Image"</span>,
+            <span class="k">"enabled"</span>: <span class="n">true</span>,
+            <span class="k">"confidenceThreshold"</span>: <span class="n">0.8</span>,
+            <span class="k">"imageAssetHash"</span>: <span class="s">"sha256-REPLACE_WITH_YOUR_SNIP_HASH"</span>
+          }
+        ]
+      }
+    },
+    {
+      <span class="k">"id"</span>: <span class="s">"after-success"</span>,
+      <span class="k">"type"</span>: <span class="s">"Wait"</span>,
+      <span class="k">"waitMs"</span>: <span class="n">200</span>
+    }
+  ]
+}</pre>
+
+            <div class="panel tip">
+              <div class="label">Win32 layer on Calculator</div>
+              Leave Win32 <code>enabled: false</code> for modern Calculator (no classic
+              <code>BUTTON</code> control ids). Enable it when practicing against Win32 apps —
+              PixelFlow Test Bench’s native button uses <code>windowClass: "BUTTON"</code> and
+              <code>controlId: 1001</code> (see fixture <code>win32-click.pflow</code>).
+            </div>
+
+            <h4>Practice drills (learn every technique)</h4>
+            <table>
+              <thead>
+                <tr><th>Drill</th><th>What to change</th><th>What the report should show</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Happy path</td>
+                  <td>Leave UIA enabled</td>
+                  <td><code>layer=UiaStructural</code></td>
+                </tr>
+                <tr>
+                  <td>Semantic only</td>
+                  <td>Set UiaStructural <code>enabled: false</code></td>
+                  <td><code>layer=UiaSemantic</code></td>
+                </tr>
+                <tr>
+                  <td>OCR fallback</td>
+                  <td>Disable both UIA layers; keep OCR text <code>=</code> or <code>Equals</code></td>
+                  <td><code>layer=Ocr</code> with confidence ≥ 0.7</td>
+                </tr>
+                <tr>
+                  <td>Image fallback</td>
+                  <td>Disable UIA + OCR; keep Image snip</td>
+                  <td><code>layer=Image</code></td>
+                </tr>
+                <tr>
+                  <td>Win32 path</td>
+                  <td>Retarget scope to a Win32 app (e.g. PixelFlow Test Bench native button:
+                    class <code>BUTTON</code>, id <code>1001</code>) and enable the Win32 layer</td>
+                  <td><code>layer=Win32</code></td>
+                </tr>
+                <tr>
+                  <td>Hard fail + screenshot</td>
+                  <td>Wrong AutomationId, all layers disabled or mismatched</td>
+                  <td><code>FailedStep</code>, optional <code>failure-click-equals.png</code>, recovery Abort</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="panel tip">
+              <div class="label">Recovery variants</div>
+              Change <code>recovery.action</code> to <code>Skip</code> to continue to
+              <code>after-success</code> after failure, or <code>Jump</code> with
+              <code>"jumpTo": "after-success"</code>. Omitting recovery still aborts.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="diagnose">
+        <h2>Diagnosing runs</h2>
+        <ul>
+          <li><strong>events.jsonl</strong> — step id, timestamps, resolve attempts, winning layer, confidence, outcome.</li>
+          <li><strong>layer=</strong> in Runner logs — if you expected UIA but see Image, the app’s accessibility tree probably drifted; fix UIA before shipping.</li>
+          <li><strong>Exit codes</strong> (<code>--run-project</code>): <code>0</code> success (Idle), <code>3</code> failed/aborted; <code>--resolve</code> uses <code>2</code> for not found.</li>
+          <li><strong>Interference</strong> — status Paused with an interference message; Resume continues with a fresh resolve.</li>
+          <li><strong>Display / DPI changes</strong> — Runner invalidates cached absolute coordinates and re-resolves; do not rely on frozen pixel positions.</li>
+        </ul>
+      </section>
+
+      <section id="install">
+        <h2>Install, CLI, and further reading</h2>
+        <h3>Packaged install</h3>
+<pre>.\scripts\pack.ps1
+.\scripts\install.ps1
+&amp; "$env:LOCALAPPDATA\Programs\PixelFlow\PixelFlow.Studio.exe"
+.\scripts\uninstall.ps1</pre>
+
+        <h3>Useful Runner commands</h3>
+<pre>PixelFlow.Runner --help
+PixelFlow.Runner --run-project C:\flows\calc-add.pflow
+PixelFlow.Runner --resolve --process CalculatorApp --automation-id equalButton --control-type Button --name Equals</pre>
+
+        <h3>Docs in this repo</h3>
+        <ul>
+          <li><a href="./architecture-plan.md">architecture-plan.md</a> — guarantees, non-goals, design</li>
+          <li><a href="./packaging.md">packaging.md</a> — unsigned install</li>
+          <li><a href="./signing-and-release.md">signing-and-release.md</a> — signing &amp; vulnerability scan</li>
+          <li><a href="./phases.md">phases.md</a> — implementation checklist</li>
+          <li><a href="../README.md">README.md</a> — build, fixtures, Test Bench matrix</li>
+        </ul>
+
+        <div class="panel tip">
+          <div class="label">Open this guide</div>
+          Double-click <code>docs/user-guide.html</code> or open it from a browser
+          (<code>file:///…/docs/user-guide.html</code>). No build step required.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      PixelFlow user guide · attended Windows automation · schemaVersion 1.
+      Examples use stock OS apps (Calculator, Notepad); always verify AutomationIds and process
+      names with the Studio inspector on your Windows build.
+    </div>
+  </footer>
+</body>
+</html>

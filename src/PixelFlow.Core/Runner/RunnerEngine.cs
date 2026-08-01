@@ -95,6 +95,7 @@ public sealed class RunnerEngine
         try
         {
             var ct = linked.Token;
+            var steps = project.Steps;
 
             Report(new RunReportEvent
             {
@@ -102,7 +103,7 @@ public sealed class RunnerEngine
                 ProjectName = project.Name,
             });
 
-            foreach (var step in project.Steps)
+            for (var index = 0; index < steps.Count;)
             {
                 if (_abortRequested || ct.IsCancellationRequested)
                 {
@@ -119,6 +120,7 @@ public sealed class RunnerEngine
                     return;
                 }
 
+                var step = steps[index];
                 var outcome = await RunStepAsync(step, project.Defaults, linked).ConfigureAwait(false);
                 if (outcome == StepOutcome.Aborted)
                 {
@@ -128,11 +130,16 @@ public sealed class RunnerEngine
 
                 if (outcome == StepOutcome.Failed)
                 {
-                    // P04: no recovery configuration yet -> Aborted after FailedStep.
-                    TransitionTo(RunnerState.Aborted);
-                    ReportRunFinished(RunReportOutcomes.Failed);
-                    return;
+                    if (!TryApplyRecovery(step, steps, ref index))
+                    {
+                        ReportRunFinished(RunReportOutcomes.Failed);
+                        return;
+                    }
+
+                    continue;
                 }
+
+                index++;
             }
 
             TransitionTo(RunnerState.Idle);
@@ -142,6 +149,87 @@ public sealed class RunnerEngine
         {
             _runCts = null;
         }
+    }
+
+    /// <summary>
+    /// After <see cref="RunnerState.FailedStep"/>, apply skip/jump/abort recovery.
+    /// Returns false when the run should stop (Aborted). On true, <paramref name="index"/>
+    /// is the next step to run; caller should <c>continue</c> without incrementing.
+    /// </summary>
+    private bool TryApplyRecovery(ScriptStep failedStep, IReadOnlyList<ScriptStep> steps, ref int index)
+    {
+        var action = NormalizeRecoveryAction(failedStep.Recovery?.Action);
+
+        if (string.Equals(action, StepRecoveryActions.Skip, StringComparison.Ordinal))
+        {
+            // FailedStep -> Idle (between steps), then continue with the next step.
+            TransitionTo(RunnerState.Idle);
+            index++;
+            return true;
+        }
+
+        if (string.Equals(action, StepRecoveryActions.Jump, StringComparison.Ordinal))
+        {
+            var jumpTo = failedStep.Recovery?.JumpTo?.Trim();
+            if (string.IsNullOrEmpty(jumpTo))
+            {
+                TransitionTo(RunnerState.Aborted);
+                return false;
+            }
+
+            var target = FindStepIndexById(steps, jumpTo);
+            if (target < 0)
+            {
+                TransitionTo(RunnerState.Aborted);
+                return false;
+            }
+
+            TransitionTo(RunnerState.Idle);
+            index = target;
+            return true;
+        }
+
+        // Abort (explicit or missing/unknown recovery) — architecture: no recovery → Aborted.
+        TransitionTo(RunnerState.Aborted);
+        return false;
+    }
+
+    private static string NormalizeRecoveryAction(string? action)
+    {
+        if (string.IsNullOrWhiteSpace(action))
+        {
+            return StepRecoveryActions.Abort;
+        }
+
+        if (string.Equals(action, StepRecoveryActions.Skip, StringComparison.OrdinalIgnoreCase))
+        {
+            return StepRecoveryActions.Skip;
+        }
+
+        if (string.Equals(action, StepRecoveryActions.Jump, StringComparison.OrdinalIgnoreCase))
+        {
+            return StepRecoveryActions.Jump;
+        }
+
+        if (string.Equals(action, StepRecoveryActions.Abort, StringComparison.OrdinalIgnoreCase))
+        {
+            return StepRecoveryActions.Abort;
+        }
+
+        return StepRecoveryActions.Abort;
+    }
+
+    private static int FindStepIndexById(IReadOnlyList<ScriptStep> steps, string id)
+    {
+        for (var i = 0; i < steps.Count; i++)
+        {
+            if (string.Equals(steps[i].Id, id, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     private async Task WaitWhilePausedAsync(CancellationTokenSource linked)

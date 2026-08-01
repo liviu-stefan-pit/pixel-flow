@@ -61,6 +61,30 @@ public sealed class ScriptStep
     /// <see cref="ProjectDefaults.CaptureFailureScreenshots"/> (default off).
     /// </summary>
     public bool? CaptureFailureScreenshot { get; set; }
+
+    /// <summary>
+    /// On <c>FailedStep</c>: Skip (continue), Jump (to <see cref="StepRecovery.JumpTo"/> step id), or Abort.
+    /// Null means Abort (architecture: no recovery configured → Aborted).
+    /// </summary>
+    public StepRecovery? Recovery { get; set; }
+}
+
+/// <summary>Recovery action after a step exhausts its retry budget or fails post-check.</summary>
+public sealed class StepRecovery
+{
+    /// <summary>Skip | Jump | Abort</summary>
+    public string Action { get; set; } = StepRecoveryActions.Abort;
+
+    /// <summary>Target step <see cref="ScriptStep.Id"/> when <see cref="Action"/> is Jump.</summary>
+    public string? JumpTo { get; set; }
+}
+
+/// <summary>Canonical <see cref="StepRecovery.Action"/> values (case-insensitive match at runtime).</summary>
+public static class StepRecoveryActions
+{
+    public const string Skip = "Skip";
+    public const string Jump = "Jump";
+    public const string Abort = "Abort";
 }
 
 public sealed class LocatorChain

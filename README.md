@@ -196,6 +196,23 @@ JSONL events include `runStarted`, `stepStarted`, `resolveAttempt` (layer + conf
 
 Fixtures: `fixtures/projects/failure-screenshot-on.pflow`, `failure-screenshot-off.pflow` (missing AutomationId → FailedStep).
 
+### P23 — recovery steps (skip / jump / abort)
+
+No Test Bench needed (missing AutomationId). On `FailedStep`, the step's `recovery` field chooses the path (`jumpTo` is a step `id`):
+
+```powershell
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/recovery-skip.pflow
+# FailedStep → Wait after-skip → Idle (exit 0)
+
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/recovery-jump.pflow
+# FailedStep → Wait landing only (skips "skipped") → Idle (exit 0)
+
+dotnet run --project src/PixelFlow.Runner/PixelFlow.Runner.csproj -- --run-project fixtures/projects/recovery-abort.pflow
+# FailedStep → Aborted; "should-not-run" never executes (exit 3)
+```
+
+Omitted `recovery` still aborts (same as P11 `retry-miss.pflow`).
+
 ## Run Test Bench
 
 ```powershell
@@ -235,4 +252,4 @@ dotnet test PixelFlow.slnx --filter Category=Live                # Live: real Ru
 
 ## Status
 
-Phases **P00–P20** implemented (list script editor + snip assets + inline image tokens). See [docs/phases.md](docs/phases.md).
+Phases **P00–P23** implemented (run reports, failure screenshots, recovery skip/jump/abort). See [docs/phases.md](docs/phases.md).

@@ -51,7 +51,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 | P20 | Inline image tokens in editor | Done |
 | P21 | Run reports (JSONL) | Done |
 | P22 | Opt-in failure screenshots | Done |
-| P23 | Recovery steps (skip/jump/abort) | Todo |
+| P23 | Recovery steps (skip/jump/abort) | Done |
 | P24 | User-interference detection | Todo |
 | P25 | Clipboard restore on type/paste | Todo |
 | P26 | DPI-aware coordinates | Todo |
@@ -346,7 +346,7 @@ This is the day-to-day implementation checklist. Architecture and rationale live
 
 ## P23 - Recovery steps (skip/jump/abort)
 
-- **Status:** Todo
+- **Status:** Done
 - **Goal:** On FailedStep, follow configured recovery: skip, jump to label, or abort.
 - **In scope:** Project model fields + state machine behavior.
 - **Out of scope:** Complex try/catch scripting language.

@@ -280,7 +280,7 @@ internal sealed class RunnerIpcHost : IAsyncDisposable
             Console.WriteLine("[runner] FailedStep — retry/timeout budget exhausted or post-check failed");
             _ = SendLogAsync(
                 "error",
-                "FailedStep: resolve/verify budget exhausted or post-check failed (no recovery configured → abort).");
+                "FailedStep: resolve/verify budget exhausted or post-check failed (recovery: skip/jump/abort per step).");
         }
         else if (state == RunnerState.Aborted)
         {

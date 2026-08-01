@@ -245,6 +245,160 @@ public sealed class RunnerEngineTests
         Assert.Contains(RunnerState.Paused, engine.TransitionLog);
     }
 
+    [Fact]
+    public async Task RecoverySkip_ContinuesWithNextStep()
+    {
+        var resolver = new MockResolver(step =>
+            step.Id == "miss"
+                ? new ResolveResult(false, FailureReason: "missing")
+                : new ResolveResult(true, step.Id));
+        var executor = new MockExecutor();
+        var engine = new RunnerEngine(resolver, new MockVerifier(true, true), executor, new ImmediateRunnerDelay());
+
+        var project = new ProjectDocument
+        {
+            SchemaVersion = ProjectSchema.CurrentVersion,
+            Name = "recovery-skip",
+            Defaults = new ProjectDefaults
+            {
+                TimeoutMs = 0,
+                Retry = new RetryPolicy { MaxAttempts = 1, BackoffMs = 0 },
+            },
+            Steps =
+            [
+                new ScriptStep
+                {
+                    Id = "miss",
+                    Type = "Click",
+                    Recovery = new StepRecovery { Action = StepRecoveryActions.Skip },
+                    Locator = new LocatorChain
+                    {
+                        Layers = [new LocatorLayer { Kind = "UiaStructural", AutomationId = "No" }],
+                    },
+                },
+                new ScriptStep { Id = "after", Type = "Wait", WaitMs = 1 },
+            ],
+        };
+
+        await engine.RunAsync(project);
+
+        Assert.Equal(RunnerState.Idle, engine.State);
+        Assert.Equal(["after"], executor.ExecutedStepIds);
+        Assert.Contains(RunnerState.FailedStep, engine.TransitionLog);
+        Assert.DoesNotContain(RunnerState.Aborted, engine.TransitionLog);
+    }
+
+    [Fact]
+    public async Task RecoveryJump_ReachesLabeledStep_SkipsInBetween()
+    {
+        var resolver = new MockResolver(step =>
+            step.Id == "miss"
+                ? new ResolveResult(false, FailureReason: "missing")
+                : new ResolveResult(true, step.Id));
+        var executor = new MockExecutor();
+        var engine = new RunnerEngine(resolver, new MockVerifier(true, true), executor, new ImmediateRunnerDelay());
+
+        var project = new ProjectDocument
+        {
+            SchemaVersion = ProjectSchema.CurrentVersion,
+            Name = "recovery-jump",
+            Defaults = new ProjectDefaults
+            {
+                TimeoutMs = 0,
+                Retry = new RetryPolicy { MaxAttempts = 1, BackoffMs = 0 },
+            },
+            Steps =
+            [
+                new ScriptStep
+                {
+                    Id = "miss",
+                    Type = "Click",
+                    Recovery = new StepRecovery
+                    {
+                        Action = StepRecoveryActions.Jump,
+                        JumpTo = "landing",
+                    },
+                    Locator = new LocatorChain
+                    {
+                        Layers = [new LocatorLayer { Kind = "UiaStructural", AutomationId = "No" }],
+                    },
+                },
+                new ScriptStep { Id = "skipped", Type = "Wait", WaitMs = 1 },
+                new ScriptStep { Id = "landing", Type = "Wait", WaitMs = 1 },
+            ],
+        };
+
+        await engine.RunAsync(project);
+
+        Assert.Equal(RunnerState.Idle, engine.State);
+        Assert.Equal(["landing"], executor.ExecutedStepIds);
+        Assert.Contains(RunnerState.FailedStep, engine.TransitionLog);
+        Assert.DoesNotContain(RunnerState.Aborted, engine.TransitionLog);
+    }
+
+    [Fact]
+    public async Task RecoveryAbort_StopsWithoutLaterSteps()
+    {
+        var resolver = new MockResolver(step =>
+            step.Id == "miss"
+                ? new ResolveResult(false, FailureReason: "missing")
+                : new ResolveResult(true, step.Id));
+        var executor = new MockExecutor();
+        var engine = new RunnerEngine(resolver, new MockVerifier(true, true), executor, new ImmediateRunnerDelay());
+
+        var project = new ProjectDocument
+        {
+            SchemaVersion = ProjectSchema.CurrentVersion,
+            Name = "recovery-abort",
+            Defaults = new ProjectDefaults
+            {
+                TimeoutMs = 0,
+                Retry = new RetryPolicy { MaxAttempts = 1, BackoffMs = 0 },
+            },
+            Steps =
+            [
+                new ScriptStep
+                {
+                    Id = "miss",
+                    Type = "Click",
+                    Recovery = new StepRecovery { Action = StepRecoveryActions.Abort },
+                    Locator = new LocatorChain
+                    {
+                        Layers = [new LocatorLayer { Kind = "UiaStructural", AutomationId = "No" }],
+                    },
+                },
+                new ScriptStep { Id = "should-not-run", Type = "Wait", WaitMs = 1 },
+            ],
+        };
+
+        await engine.RunAsync(project);
+
+        Assert.Equal(RunnerState.Aborted, engine.State);
+        Assert.Empty(executor.ExecutedStepIds);
+        Assert.Contains(RunnerState.FailedStep, engine.TransitionLog);
+        Assert.Equal(RunnerState.Aborted, engine.TransitionLog[^1]);
+    }
+
+    [Fact]
+    public async Task RecoveryJump_MissingTarget_Aborts()
+    {
+        var resolver = new MockResolver(_ => new ResolveResult(false, FailureReason: "missing"));
+        var executor = new MockExecutor();
+        var engine = new RunnerEngine(resolver, new MockVerifier(true, true), executor, new ImmediateRunnerDelay());
+
+        var project = OneClickProject(maxAttempts: 1);
+        project.Steps[0].Recovery = new StepRecovery
+        {
+            Action = StepRecoveryActions.Jump,
+            JumpTo = "does-not-exist",
+        };
+
+        await engine.RunAsync(project);
+
+        Assert.Equal(RunnerState.Aborted, engine.State);
+        Assert.Empty(executor.ExecutedStepIds);
+    }
+
     private static async Task WaitForStateAsync(
         RunnerEngine engine,
         RunnerState expected,
@@ -401,9 +555,12 @@ public sealed class RunnerEngineTests
 
         public int ExecuteCount { get; private set; }
 
+        public List<string> ExecutedStepIds { get; } = [];
+
         public async Task ExecuteAsync(ScriptStep step, ResolveResult candidate, CancellationToken cancellationToken)
         {
             ExecuteCount++;
+            ExecutedStepIds.Add(step.Id);
             if (_impl is not null)
             {
                 await _impl(step, candidate, cancellationToken).ConfigureAwait(false);

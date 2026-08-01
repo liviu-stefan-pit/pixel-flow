@@ -140,6 +140,58 @@ public sealed class RunnerFixtureMatrixTests
         Assert.Equal(RunReportOutcomes.Succeeded, runFinished.Outcome);
     }
 
+    [Fact]
+    [Trait("Category", "Live")]
+    public async Task RecoverySkip_ContinuesAfterFailedStep()
+    {
+        using var workspace = FixtureWorkspace.CreateCopy("recovery-skip");
+        var result = await RunnerCli.RunProjectAsync(workspace.ProjectFolder, timeout: TimeSpan.FromSeconds(30));
+
+        Assert.Equal(0, result.ExitCode);
+
+        var events = ReadLatestEvents(workspace.ProjectFolder);
+        var miss = Assert.Single(events, e => e.Event == RunReportEventNames.StepFinished && e.StepId == "click-missing");
+        Assert.Equal(RunReportOutcomes.Failed, miss.Outcome);
+        var after = Assert.Single(events, e => e.Event == RunReportEventNames.StepFinished && e.StepId == "after-skip");
+        Assert.Equal(RunReportOutcomes.Succeeded, after.Outcome);
+        var runFinished = Assert.Single(events, e => e.Event == RunReportEventNames.RunFinished);
+        Assert.Equal(RunReportOutcomes.Succeeded, runFinished.Outcome);
+    }
+
+    [Fact]
+    [Trait("Category", "Live")]
+    public async Task RecoveryJump_ReachesLabeledStep()
+    {
+        using var workspace = FixtureWorkspace.CreateCopy("recovery-jump");
+        var result = await RunnerCli.RunProjectAsync(workspace.ProjectFolder, timeout: TimeSpan.FromSeconds(30));
+
+        Assert.Equal(0, result.ExitCode);
+
+        var events = ReadLatestEvents(workspace.ProjectFolder);
+        Assert.DoesNotContain(events, e => e.Event == RunReportEventNames.StepFinished && e.StepId == "skipped");
+        var landing = Assert.Single(events, e => e.Event == RunReportEventNames.StepFinished && e.StepId == "landing");
+        Assert.Equal(RunReportOutcomes.Succeeded, landing.Outcome);
+        var runFinished = Assert.Single(events, e => e.Event == RunReportEventNames.RunFinished);
+        Assert.Equal(RunReportOutcomes.Succeeded, runFinished.Outcome);
+    }
+
+    [Fact]
+    [Trait("Category", "Live")]
+    public async Task RecoveryAbort_StopsWithoutLaterSteps()
+    {
+        using var workspace = FixtureWorkspace.CreateCopy("recovery-abort");
+        var result = await RunnerCli.RunProjectAsync(workspace.ProjectFolder, timeout: TimeSpan.FromSeconds(30));
+
+        Assert.Equal(3, result.ExitCode);
+
+        var events = ReadLatestEvents(workspace.ProjectFolder);
+        Assert.DoesNotContain(events, e => e.Event == RunReportEventNames.StepFinished && e.StepId == "should-not-run");
+        var miss = Assert.Single(events, e => e.Event == RunReportEventNames.StepFinished && e.StepId == "click-missing");
+        Assert.Equal(RunReportOutcomes.Failed, miss.Outcome);
+        var runFinished = Assert.Single(events, e => e.Event == RunReportEventNames.RunFinished);
+        Assert.Equal(RunReportOutcomes.Failed, runFinished.Outcome);
+    }
+
     private static string RequireLatestReportDirectory(string projectFolder) =>
         RunReportStore.FindLatestReportDirectory(projectFolder)
             ?? throw new InvalidOperationException($"No report directory under {projectFolder}.");

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "name": "recovery-skip",
+  "variables": {},
+  "defaults": {
+    "timeoutMs": 50,
+    "retry": {
+      "maxAttempts": 1,
+      "backoffMs": 0
+    }
+  },
+  "steps": [
+    {
+      "id": "click-missing",
+      "type": "Click",
+      "timeoutMs": 50,
+      "retry": {
+        "maxAttempts": 1,
+        "backoffMs": 0
+      },
+      "recovery": {
+        "action": "Skip"
+      },
+      "locator": {
+        "scope": {
+          "processName": "PixelFlow.TestBench",
+          "windowTitle": "Test Bench"
+        },
+        "layers": [
+          {
+            "kind": "UiaStructural",
+            "enabled": true,
+            "confidenceThreshold": 0.9,
+            "automationId": "TbDoesNotExist",
+            "controlType": "Button",
+            "name": "Missing"
+          }
+        ]
+      }
+    },
+    {
+      "id": "after-skip",
+      "type": "Wait",
+      "waitMs": 50
+    }
+  ]
+}

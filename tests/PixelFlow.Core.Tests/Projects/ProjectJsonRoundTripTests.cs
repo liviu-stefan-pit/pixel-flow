@@ -87,6 +87,11 @@ public sealed class ProjectJsonRoundTripTests
                 Id = "s2",
                 Type = "Click",
                 TimeoutMs = 1000,
+                Recovery = new StepRecovery
+                {
+                    Action = StepRecoveryActions.Jump,
+                    JumpTo = "s1",
+                },
                 Locator = new LocatorChain
                 {
                     Scope = new ProcessWindowScope
@@ -125,6 +130,8 @@ public sealed class ProjectJsonRoundTripTests
             Assert.Equal(expected.Steps[i].Type, actual.Steps[i].Type);
             Assert.Equal(expected.Steps[i].WaitMs, actual.Steps[i].WaitMs);
             Assert.Equal(expected.Steps[i].TimeoutMs, actual.Steps[i].TimeoutMs);
+            Assert.Equal(expected.Steps[i].Recovery?.Action, actual.Steps[i].Recovery?.Action);
+            Assert.Equal(expected.Steps[i].Recovery?.JumpTo, actual.Steps[i].Recovery?.JumpTo);
             Assert.Equal(
                 expected.Steps[i].Locator?.Layers.FirstOrDefault()?.AutomationId,
                 actual.Steps[i].Locator?.Layers.FirstOrDefault()?.AutomationId);
